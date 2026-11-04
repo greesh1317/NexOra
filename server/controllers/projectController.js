@@ -1,13 +1,20 @@
 import Project from "../models/Project.js";
+import Task from "../models/Task.js";
+import User from "../models/User.js";
+
+// A project's leader must be a real Team Leader account
+const isTeamLeader = (id) => User.exists({ _id: id, role: "team_leader" });
 
 // @desc    Get projects — Manager sees all, Team Leader sees projects they lead,
-//          Team Member sees all (read-only) so they can find their assigned work
+//          Team Member sees only projects where they have a task (read-only)
 // @route   GET /api/projects
 export const getProjects = async (req, res) => {
   try {
     const filter = {};
     if (req.user.role === "team_leader") {
       filter.leader = req.user._id;
+    } else if (req.user.role === "team_member") {
+      filter._id = { $in: await Task.find({ assignedUser: req.user._id }).distinct("project") };
     }
 
     const projects = await Project.find(filter)
@@ -31,6 +38,10 @@ export const createProject = async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     }
 
+    if (leader && !(await isTeamLeader(leader))) {
+      return res.status(400).json({ message: "The project leader must be a Team Leader account" });
+    }
+
     const project = await Project.create({
       title,
       description,
@@ -51,7 +62,15 @@ export const createProject = async (req, res) => {
 // @route   PUT /api/projects/:id
 export const updateProject = async (req, res) => {
   try {
-    const project = await Project.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = {};
+    for (const key of ["title", "description", "status", "startDate", "endDate", "team", "leader"]) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (updates.leader && !(await isTeamLeader(updates.leader))) {
+      return res.status(400).json({ message: "The project leader must be a Team Leader account" });
+    }
+
+    const project = await Project.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     });
@@ -62,6 +81,7 @@ export const updateProject = async (req, res) => {
 
     res.status(200).json(project);
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
     res.status(500).json({ message: "Failed to update project", error: error.message });
   }
 };

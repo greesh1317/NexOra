@@ -8,6 +8,8 @@ const dailyReportSchema = new mongoose.Schema(
     workDone: { type: String },
     blockers: { type: String },
     hours: { type: Number },
+    // e.g. a GitHub commits-filter link scoped to that day — proof of what was done
+    submissionLink: { type: String },
   },
   { timestamps: true }
 );

@@ -16,6 +16,9 @@ const taskSchema = new mongoose.Schema(
       enum: ["low", "medium", "high"],
       default: "medium",
     },
+    // Proof-of-work link the assignee pastes in — e.g. a GitHub commit/PR URL,
+    // a deployed preview, a doc. Optional; purely for a reviewer to click.
+    submissionLink: { type: String },
   },
   { timestamps: true }
 );

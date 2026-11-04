@@ -14,6 +14,9 @@ erDiagram
     PROJECTS ||--o{ TASKS : contains
     PROJECTS ||--o{ DAILYREPORTS : tracked_in
     PROJECTS ||--o{ REVIEWS : reviewed_in
+    USERS ||--o{ ATTACHMENTS : uploads
+    TASKS ||--o{ ATTACHMENTS : has_files
+    DAILYREPORTS ||--o{ ATTACHMENTS : has_files
 
     USERS {
         ObjectId _id
@@ -51,6 +54,7 @@ erDiagram
         date deadline
         string status
         string priority
+        string submissionLink
     }
 
     DAILYREPORTS {
@@ -61,6 +65,7 @@ erDiagram
         string workDone
         string blockers
         number hours
+        string submissionLink
     }
 
     REVIEWS {
@@ -70,6 +75,17 @@ erDiagram
         ObjectId project
         number rating
         string comments
+    }
+
+    ATTACHMENTS {
+        ObjectId _id
+        string filename
+        string mimeType
+        number size
+        buffer data
+        ObjectId uploadedBy
+        ObjectId task
+        ObjectId report
     }
 
     NOTIFICATIONS {

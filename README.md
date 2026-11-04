@@ -1,85 +1,80 @@
 # NexOra — Stress-Free Team Management Platform
 
-A centralized, role-based team and project management platform. Managers create and monitor projects, team leaders assign and review tasks, and team members update tasks and submit daily work reports — all in one system with real JWT-based, role-based login.
+A centralized, role-based team and project management platform. **Managers** create projects and onboard people,
+**Team Leaders** assign tasks, read daily reports and review their team, and **Team Members** update tasks, attach
+proof-of-work links and submit daily reports — with notifications, analytics and an AI progress summary.
 
-This repo covers **Review 1 and Review 2** of the NexOra development plan (see `docs/REVIEW_1_CHECKLIST.md` and `docs/REVIEW_2_CHECKLIST.md`).
+## Features
+
+- JWT authentication with three roles, role-based dashboards and protected routes
+- Projects, tasks (with deadlines and priority), daily reports
+- **Proof of work**: paste a link (with a one-click helper that builds today's GitHub commits link) **or upload a file** (PDF, image, Office file, zip — up to 5 MB) on any task or daily report
+- **Deadline calendar** for every role: task deadlines and project due dates, with overdue and next-7-days lists
+- Each Team Leader sees only the projects they lead (tasks, reports, reviews, files, analytics)
+- Change your own password from the navbar
+- **Reviews & feedback** (1–5 stars + comments)
+- **Notifications** (task assigned, review received) and in-app deadline reminders
+- **Employee search** and **project analytics** (completion rate, top contributors)
+- **AI progress summary** (Anthropic API) with an automatic computed fallback
+- Managers add Team Leaders / Team Members from the dashboard (no public sign-up)
 
 ## Tech Stack
 
-| Component        | Technology            |
-|-------------------|------------------------|
-| Frontend          | React.js (Vite)        |
-| Styling           | Tailwind CSS            |
-| Backend           | Node.js + Express.js   |
-| Database          | MongoDB (Mongoose)     |
-| Authentication    | JWT (implemented)       |
-| API Testing       | Postman                 |
-| Version Control   | Git + GitHub            |
-| File Storage      | Cloudinary (planned — Review 3) |
+| Component       | Technology                          |
+|------------------|--------------------------------------|
+| Frontend         | React (Vite) + Tailwind CSS          |
+| Backend          | Node.js + Express                    |
+| Database         | MongoDB + Mongoose                   |
+| Authentication   | JWT + bcrypt                         |
+| AI               | Anthropic API (`@anthropic-ai/sdk`)  |
+| API testing      | Postman                              |
+| Version control  | Git + GitHub                         |
 
 ## Project Structure
 
 ```
 nexora-team-management/
-├── client/                 # React frontend (Vite)
+├── client/                  # React frontend
 │   └── src/
-│       ├── api/            # fetch wrapper that attaches the JWT
-│       ├── context/        # AuthContext — login/logout/current user
-│       ├── components/     # Navbar, StatCard, ProtectedRoute
-│       ├── pages/          # Login + 3 role dashboards + Unauthorized
-│       └── App.jsx         # route definitions
-├── server/                  # Node + Express backend
+│       ├── api/             # fetch wrapper that attaches the JWT
+│       ├── context/         # AuthContext — login / logout / current user
+│       ├── components/      # Navbar, NotificationBell, ProofLink, ProtectedRoute, ...
+│       ├── pages/           # Login + 3 role dashboards + Calendar + Unauthorized
+│       └── utils/           # GitHub link builder, safe-link check, date helpers
+├── server/                  # Express backend
 │   ├── config/              # DB connection
-│   ├── controllers/         # auth, users, projects, teams, tasks, reports
-│   ├── models/               # 7 Mongoose schemas
+│   ├── controllers/         # auth, users, projects, teams, tasks, reports, reviews,
+│   │                        # notifications, analytics, summary (AI), attachments (files)
+│   ├── models/              # 7 Mongoose schemas
 │   ├── routes/
-│   ├── middleware/           # JWT verification + role authorization
-│   ├── seed.js                # creates demo accounts for all 3 roles
+│   ├── middleware/          # JWT verification + role authorization
+│   ├── utils/               # access rules (which projects/files a leader may see)
+│   ├── seed.js              # demo accounts + sample data
 │   └── server.js
-├── docs/                      # ER diagram, API list, review checklists
-├── README.md
-└── .gitignore
+└── docs/                    # ER diagram, API reference, review checklists, deployment guide
 ```
 
 ## Getting Started
 
-### 1. Clone / open in VS Code
-
-```bash
-cd nexora-team-management
-code .
-```
-
-### 2. Backend setup
+### 1. Backend
 
 ```bash
 cd server
 npm install
-cp .env.example .env    # then fill in your MongoDB URI and a JWT secret
+cp .env.example .env        # Windows: copy .env.example .env
+npm run seed                # one time — creates demo accounts and sample data
 npm run dev
 ```
 
-The server starts on `http://localhost:5000` and connects to MongoDB using `MONGO_URI` from `.env`.
+Fill in `server/.env`:
 
-### 3. Seed demo accounts (do this once)
+| Variable | Purpose |
+|----------|---------|
+| `MONGO_URI` | `mongodb://127.0.0.1:27017/nexora` for a local MongoDB (make sure the MongoDB service is running) |
+| `JWT_SECRET` | any long random string |
+| `ANTHROPIC_API_KEY` | *optional* — enables the real AI summary (console.anthropic.com; needs credit on the account) |
 
-In a second terminal, still inside `server/`:
-
-```bash
-npm run seed
-```
-
-This creates one demo user per role, plus a sample project and task, and prints the login credentials to the terminal:
-
-| Role | Email | Password |
-|------|-------|----------|
-| Manager | manager@nexora.test | password123 |
-| Team Leader | leader@nexora.test | password123 |
-| Team Member | member@nexora.test | password123 |
-
-### 4. Frontend setup
-
-In a third terminal:
+### 2. Frontend
 
 ```bash
 cd client
@@ -87,26 +82,38 @@ npm install
 npm run dev
 ```
 
-The frontend starts on `http://localhost:5173` and proxies `/api` calls to the backend.
+Open http://localhost:5173.
 
-### 5. Try it out
+### 3. Demo accounts (password for all: `password123`)
 
-- Visit the frontend URL and log in as any of the 3 seeded accounts above.
-- Each role lands on its own dashboard automatically: Manager → project creation & overview, Team Leader → task assignment & daily reports, Team Member → their tasks & report submission.
-- Try visiting another role's dashboard URL directly while logged in as a different role — you'll be redirected to `/unauthorized`, proving routes are protected, not just hidden.
+| Role | Email |
+|------|-------|
+| Manager | manager@nexora.test |
+| Team Leader (leads the demo project) | leader2@nexora.test |
+| Team Leader (no project yet — sees an empty dashboard) | leader@nexora.test |
+| Team Member | member@nexora.test |
+| Team Member | member2@nexora.test |
 
-## Pushing to GitHub
+## AI summary
+
+The summary is built from task data and the **written** daily reports. If `ANTHROPIC_API_KEY` is missing — or the call
+fails for any reason (no credit, no internet, rate limit) — a computed summary is shown instead, and the UI says which
+one you are looking at. The browser never sees the API key.
+
+## Deployment
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (MongoDB Atlas + Render + Vercel/Netlify, all free tiers).
+
+## Docs
+
+- `docs/API_LIST.md` — every endpoint with who can call it
+- `docs/ER_DIAGRAM.md` — database diagram
+- `docs/REVIEW_1_CHECKLIST.md`, `REVIEW_2_CHECKLIST.md`, `REVIEW_3_CHECKLIST.md` — scope of each review (Review 3 includes the demo script and known limitations)
+
+## Pushing updates to GitHub
 
 ```bash
 git add .
-git commit -m "Review 2: JWT auth, role-based dashboards, tasks & daily reports"
+git commit -m "Review 3: AI summary, reviews, notifications, analytics, proof links"
 git push
 ```
-
-(If this is a brand-new repo instead of continuing Review 1's, use `git init`, `git branch -M main`, and `git remote add origin <url>` first.)
-
-## Status
-
-- `docs/REVIEW_1_CHECKLIST.md` — Review 1 scope (scaffold, login/dashboard UI, one working API).
-- `docs/REVIEW_2_CHECKLIST.md` — Review 2 scope (real auth, role-based dashboards, tasks, daily reports) — **you are here**.
-- `docs/API_LIST.md` — full endpoint reference with auth/role requirements.

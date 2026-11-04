@@ -1,22 +1,25 @@
-import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-
+import { verifyToken } from "../utils/token.js";
 
 export const protect = async (req, res, next) => {
-  let token;
+  const header = req.headers.authorization;
 
-  if (req.headers.authorization?.startsWith("Bearer")) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
-      req.user = await User.findById(decoded.id).select("-password");
-      return next();
-    } catch (error) {
-      return res.status(401).json({ message: "Not authorized, token invalid" });
-    }
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Not authorized, no token" });
   }
 
-  return res.status(401).json({ message: "Not authorized, no token" });
+  try {
+    const decoded = verifyToken(header.split(" ")[1]);
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      // The token is valid but the account was deleted
+      return res.status(401).json({ message: "Not authorized, account no longer exists" });
+    }
+    req.user = user;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: "Not authorized, token invalid" });
+  }
 };
 
 

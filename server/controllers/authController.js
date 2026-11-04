@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { signToken } from "../utils/token.js";
 import User from "../models/User.js";
 
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET || "dev_secret", { expiresIn: "7d" });
+const generateToken = (id) => signToken(id);
 
 // @desc    Register a user
 // @route   POST /api/auth/register
@@ -48,7 +47,12 @@ export const registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const user = await User.findOne({ email });
     if (!user) {

@@ -4,6 +4,7 @@ import ManagerDashboard from "./pages/ManagerDashboard.jsx";
 import TeamLeaderDashboard from "./pages/TeamLeaderDashboard.jsx";
 import TeamMemberDashboard from "./pages/TeamMemberDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
+import CalendarPage from "./pages/CalendarPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
@@ -12,6 +13,16 @@ function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
+
+      {/* The deadline calendar is open to every logged-in role (the API limits what each role sees) */}
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/manager-dashboard"
