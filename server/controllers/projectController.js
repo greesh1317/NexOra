@@ -1,10 +1,20 @@
 import Project from "../models/Project.js";
 
-// @desc    Get all projects
+// @desc    Get projects — Manager sees all, Team Leader sees projects they lead,
+//          Team Member sees all (read-only) so they can find their assigned work
 // @route   GET /api/projects
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ createdAt: -1 });
+    const filter = {};
+    if (req.user.role === "team_leader") {
+      filter.leader = req.user._id;
+    }
+
+    const projects = await Project.find(filter)
+      .populate("leader", "name email role")
+      .populate("team", "teamName")
+      .sort({ createdAt: -1 });
+
     res.status(200).json(projects);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch projects", error: error.message });

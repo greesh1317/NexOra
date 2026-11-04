@@ -1,13 +1,45 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login.jsx";
 import ManagerDashboard from "./pages/ManagerDashboard.jsx";
+import TeamLeaderDashboard from "./pages/TeamLeaderDashboard.jsx";
+import TeamMemberDashboard from "./pages/TeamMemberDashboard.jsx";
+import Unauthorized from "./pages/Unauthorized.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<ManagerDashboard />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+
+      <Route
+        path="/manager-dashboard"
+        element={
+          <ProtectedRoute roles={["manager"]}>
+            <ManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leader-dashboard"
+        element={
+          <ProtectedRoute roles={["team_leader"]}>
+            <TeamLeaderDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/member-dashboard"
+        element={
+          <ProtectedRoute roles={["team_member"]}>
+            <TeamMemberDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Old Review 1 route kept as a redirect so nothing breaks if bookmarked */}
+      <Route path="/dashboard" element={<Navigate to="/manager-dashboard" replace />} />
     </Routes>
   );
 }

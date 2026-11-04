@@ -1,12 +1,41 @@
-function Navbar({ userName = "Manager" }) {
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+
+const roleLabels = {
+  manager: "Manager",
+  team_leader: "Team Leader",
+  team_member: "Team Member",
+};
+
+function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const displayName = user?.name || "Guest";
+  const roleLabel = roleLabels[user?.role] || "";
+
   return (
     <header className="flex items-center justify-between bg-white shadow px-6 py-4">
       <h1 className="text-xl font-semibold text-slate-800">NexOra</h1>
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-slate-600">{userName}</span>
-        <div className="h-9 w-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-medium">
-          {userName.charAt(0)}
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <p className="text-sm font-medium text-slate-700 leading-tight">{displayName}</p>
+          {roleLabel && <p className="text-xs text-slate-400 leading-tight">{roleLabel}</p>}
         </div>
+        <div className="h-9 w-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-medium">
+          {displayName.charAt(0)}
+        </div>
+        <button
+          onClick={handleLogout}
+          className="text-sm text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          Log out
+        </button>
       </div>
     </header>
   );

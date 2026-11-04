@@ -1,15 +1,34 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+
+const dashboardByRole = {
+  manager: "/manager-dashboard",
+  team_leader: "/leader-dashboard",
+  team_member: "/member-dashboard",
+};
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: wire up to POST /api/auth/login once JWT auth is implemented
-    navigate("/dashboard");
+    setError("");
+    setLoading(true);
+
+    try {
+      const { user } = await login(email, password);
+      navigate(dashboardByRole[user.role] || "/login");
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,16 +62,24 @@ function Login() {
             />
           </div>
 
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors"
+            disabled={loading}
+            className="mt-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium py-2 rounded-lg transition-colors"
           >
-            Log In
+            {loading ? "Signing in..." : "Log In"}
           </button>
         </form>
 
         <p className="text-xs text-slate-400 mt-6 text-center">
-          Role-based access (Manager / Team Leader / Team Member) coming with JWT integration.
+          Manager, Team Leader and Team Member accounts each land on their own dashboard
+          automatically after login.
         </p>
       </div>
     </div>

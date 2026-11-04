@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// Protects routes - verifies JWT and attaches user to req
+
 export const protect = async (req, res, next) => {
   let token;
 
@@ -19,7 +19,7 @@ export const protect = async (req, res, next) => {
   return res.status(401).json({ message: "Not authorized, no token" });
 };
 
-// Restrict access to specific roles, e.g. authorize("manager")
+
 export const authorize = (...roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
     return res.status(403).json({ message: "Forbidden: insufficient role" });
