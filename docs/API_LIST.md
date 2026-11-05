@@ -6,16 +6,17 @@ All routes except `/api/auth/*` require `Authorization: Bearer <token>` (the JWT
 |------------------|--------|------------------------------------|--------------------------------|-------|
 | Authentication   | —      | ~~`/api/auth/register`~~           | Removed                        | No public sign-up. Managers create accounts with `POST /api/users`; demo accounts come from `npm run seed` |
 | Authentication   | POST   | `/api/auth/login`                  | Public                         | Returns `{ _id, name, email, role, token }`. Email is case-insensitive. Limited to 10 attempts / 15 min per IP |
-| Users            | GET    | `/api/users`                       | Manager, Team Leader           | A leader only gets Team Members (name, email, role). Filters: `?role=team_member`, `?search=name-or-email` (case-insensitive, regex-escaped) |
+| Users            | GET    | `/api/users`                       | Manager, Team Leader           | A leader only gets the Team Members of their own team(s) (name, email, role). Filters: `?role=team_member`, `?search=name-or-email` (case-insensitive, regex-escaped) |
 | Users            | GET    | `/api/users/me`                    | Any logged-in user             | Current user's profile |
 | Users            | PUT    | `/api/users/me/password`           | Any logged-in user             | `{ currentPassword, newPassword (min 8) }` — verifies the current password first |
 | Users            | POST   | `/api/users`                       | Manager only                   | Password min 8 characters. Creates a Team Leader / Team Member account (a Manager cannot create another Manager) |
 | Projects         | GET    | `/api/projects`                    | Any logged-in user             | **Manager** all · **Team Leader** projects they lead · **Team Member** projects where they have a task |
-| Projects         | POST / PUT / DELETE | `/api/projects[/:id]` | Manager only                   | `startDate` / `endDate` (due date) feed the calendar |
-| Teams            | GET    | `/api/teams`                       | Any logged-in user             | **Manager** all · **Team Leader** teams they lead / that work on their projects · **Team Member** teams they belong to |
-| Teams            | POST / PUT | `/api/teams[/:id]`             | Manager only                   | API ready; no dedicated UI screen yet |
+| Projects         | POST / PUT / DELETE | `/api/projects[/:id]` | Manager only                   | `startDate` / `endDate` (due date) feed the calendar. Optional `team`: when set, the team's leader becomes the project leader. UI: create form + **Edit** on the Manager dashboard |
+| Teams            | GET    | `/api/teams`, `/api/teams/:id`     | Any logged-in user             | **Manager** all · **Team Leader** teams they lead / that work on their projects · **Team Member** teams they belong to (others → 404) |
+| Teams            | POST / PUT | `/api/teams[/:id]`         | Manager only                   | `{ teamName, leader?, members[] }`. Leader must be a Team Leader and lead only one team; members must be Team Members and be in only one team. Changing a leader moves the team's projects to the new leader. UI: **Teams** page |
+| Teams            | DELETE | `/api/teams/:id`                   | Manager only                   | Blocked (409) while any project still uses the team |
 | Tasks            | GET    | `/api/tasks`                       | Any logged-in user             | **Manager** all · **Team Leader** only tasks in projects they lead · **Team Member** only their own. `?project=` filter |
-| Tasks            | POST   | `/api/tasks`                       | Manager / Team Leader          | A leader must name a project **they lead**. Accepts `submissionLink`, `deadline`; **notifies the assignee** |
+| Tasks            | POST   | `/api/tasks`                       | Manager / Team Leader          | A leader must name a project **they lead**. The assignee must be a Team Member **of the project's team** (the project must have a team).  Accepts `submissionLink`, `deadline`; **notifies the assignee** |
 | Tasks            | PUT    | `/api/tasks/:id`                   | Assignee, Manager, or the project's leader | The assignee can change **only** `status` and `submissionLink` |
 | Tasks            | DELETE | `/api/tasks/:id`                   | Manager or the project's leader | |
 | Daily Reports    | GET    | `/api/reports`                     | Any logged-in user             | Member: own · Leader: reports on projects they lead · Manager: all |

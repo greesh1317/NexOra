@@ -5,6 +5,7 @@ import TeamLeaderDashboard from "./pages/TeamLeaderDashboard.jsx";
 import TeamMemberDashboard from "./pages/TeamMemberDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
+import TeamsPage from "./pages/TeamsPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
@@ -20,6 +21,16 @@ function App() {
         element={
           <ProtectedRoute>
             <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Teams: the Manager manages them; leaders and members see their own team (the API limits what each role gets) */}
+      <Route
+        path="/teams"
+        element={
+          <ProtectedRoute>
+            <TeamsPage />
           </ProtectedRoute>
         }
       />

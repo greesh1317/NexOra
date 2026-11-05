@@ -42,6 +42,9 @@ function Navbar() {
           <NavLink to={homeByRole[user?.role] || "/login"} className={linkClass}>
             Dashboard
           </NavLink>
+          <NavLink to="/teams" className={linkClass}>
+            Teams
+          </NavLink>
           <NavLink to="/calendar" className={linkClass}>
             Calendar
           </NavLink>

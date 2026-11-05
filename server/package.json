@@ -10,7 +10,8 @@
     "seed": "node seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "normalize-emails": "node scripts/normalizeEmails.js"
+    "normalize-emails": "node scripts/normalizeEmails.js",
+    "attach-teams": "node scripts/attachTeams.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",

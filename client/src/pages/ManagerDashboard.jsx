@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import StatCard from "../components/StatCard.jsx";
 import SummaryBadge from "../components/SummaryBadge.jsx";
+import ProjectEditModal from "../components/ProjectEditModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
 import { formatDeadline } from "../utils/dates.js";
@@ -20,10 +21,12 @@ function ManagerDashboard() {
   const [projects, setProjects] = useState([]);
   const [leaders, setLeaders] = useState([]);
   const [members, setMembers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const emptyProject = { title: "", description: "", leader: "", status: "upcoming", startDate: "", endDate: "" };
+  const emptyProject = { title: "", description: "", leader: "", team: "", status: "upcoming", startDate: "", endDate: "" };
   const [form, setForm] = useState(emptyProject);
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,12 +49,14 @@ function ManagerDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [projectData, leaderData, memberData, analyticsData] = await Promise.all([
+      const [projectData, leaderData, memberData, analyticsData, teamData] = await Promise.all([
         api.get("/projects", token),
         api.get("/users?role=team_leader", token),
         api.get("/users?role=team_member", token),
         api.get("/analytics/overview", token).catch(() => null),
+        api.get("/teams", token).catch(() => []),
       ]);
+      setTeams(teamData);
       setProjects(projectData);
       setLeaders(leaderData);
       setMembers(memberData);
@@ -76,7 +81,7 @@ function ManagerDashboard() {
     try {
       // Send only the fields that were filled in (an empty leader/date would fail validation)
       const payload = { ...form };
-      ["leader", "startDate", "endDate"].forEach((k) => !payload[k] && delete payload[k]);
+      ["leader", "team", "startDate", "endDate"].forEach((k) => !payload[k] && delete payload[k]);
       await api.post("/projects", payload, token);
       setForm(emptyProject);
       await loadData();
@@ -335,15 +340,31 @@ function ManagerDashboard() {
             <select
               value={form.leader}
               onChange={(e) => setForm({ ...form, leader: e.target.value })}
-              className={inputClass}
+              disabled={Boolean(form.team)}
+              className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
             >
-              <option value="">Assign a team leader (optional)</option>
+              <option value="">{form.team ? "Leader comes from the team" : "Assign a team leader (optional)"}</option>
               {leaders.map((l) => (
                 <option key={l._id} value={l._id}>
                   {l.name}
                 </option>
               ))}
             </select>
+            <select
+              value={form.team}
+              onChange={(e) => setForm({ ...form, team: e.target.value, leader: "" })}
+              className={inputClass}
+            >
+              <option value="">Team (optional — needed before tasks can be assigned)</option>
+              {teams.map((t) => (
+                <option key={t._id} value={t._id}>
+                  {t.teamName}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 self-center">
+              Pick a team and its leader automatically leads the project.
+            </p>
             <input
               type="text"
               placeholder="Description (optional)"
@@ -408,30 +429,38 @@ function ManagerDashboard() {
               <tr>
                 <th className="px-4 py-3">Project</th>
                 <th className="px-4 py-3">Leader</th>
+                <th className="px-4 py-3">Team</th>
                 <th className="px-4 py-3">Due</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td className="px-4 py-4 text-slate-400" colSpan={4}>Loading projects...</td>
+                  <td className="px-4 py-4 text-slate-400" colSpan={6}>Loading projects...</td>
                 </tr>
               )}
               {!loading && projects.length === 0 && (
                 <tr>
-                  <td className="px-4 py-4 text-slate-400" colSpan={4}>No projects yet — create one above.</td>
+                  <td className="px-4 py-4 text-slate-400" colSpan={6}>No projects yet — create one above.</td>
                 </tr>
               )}
               {projects.map((p) => (
                 <tr key={p._id} className="border-t border-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-800">{p.title}</td>
                   <td className="px-4 py-3 text-slate-600">{p.leader?.name || "Unassigned"}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.team?.teamName || <span className="text-amber-600 text-xs">No team</span>}</td>
                   <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDeadline(p.endDate)}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusStyles[p.status]}`}>
                       {p.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => setEditingProject(p)} className="text-xs text-indigo-600 hover:underline">
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -439,6 +468,19 @@ function ManagerDashboard() {
           </table>
         </div>
       </main>
+      {editingProject && (
+        <ProjectEditModal
+          project={editingProject}
+          teams={teams}
+          leaders={leaders}
+          token={token}
+          onClose={() => setEditingProject(null)}
+          onSaved={async () => {
+            setEditingProject(null);
+            await loadData();
+          }}
+        />
+      )}
     </div>
   );
 }

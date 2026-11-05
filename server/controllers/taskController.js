@@ -1,6 +1,7 @@
 import Task from "../models/Task.js";
 import Notification from "../models/Notification.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
+import { assigneeProblem } from "../utils/teamRules.js";
 
 // Submission links must be real web links — blocks things like "javascript:..." being stored
 const isValidLink = (value) => !value || /^https?:\/\/\S+$/i.test(String(value).trim());
@@ -55,6 +56,10 @@ export const createTask = async (req, res) => {
         return res.status(403).json({ message: "You can only create tasks in projects you lead" });
       }
     }
+
+    // The assignee must be a Team Member of the project's team
+    const problem = await assigneeProblem(project, assignedUser);
+    if (problem) return res.status(400).json({ message: problem });
 
     const task = await Task.create({
       title,
@@ -125,6 +130,15 @@ export const updateTask = async (req, res) => {
       const movingProject = updates.project && String(updates.project) !== String(task.project);
       if (movingProject && req.user.role === "team_leader" && !(await leadsProject(req.user._id, updates.project))) {
         return res.status(403).json({ message: "You can only move tasks into projects you lead" });
+      }
+      if (updates.assignedUser === "") updates.assignedUser = null; // "" means: unassign
+
+      // Re-check the assignee whenever the assignee or the project changes
+      if (updates.assignedUser !== undefined || updates.project !== undefined) {
+        const project = updates.project !== undefined ? updates.project : task.project;
+        const assignee = updates.assignedUser !== undefined ? updates.assignedUser : task.assignedUser;
+        const problem = await assigneeProblem(project, assignee);
+        if (problem) return res.status(400).json({ message: problem });
       }
     } else {
       updates = {};

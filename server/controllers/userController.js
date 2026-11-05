@@ -1,5 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Team from "../models/Team.js";
+import { visibleTeamFilter } from "../utils/teamRules.js";
 
 // @desc    Get all users — optionally filter by role, and/or search by name/email
 // @route   GET /api/users?role=team_leader&search=mee
@@ -7,8 +9,12 @@ export const getUsers = async (req, res) => {
   try {
     const filter = {};
     const isLeader = req.user.role === "team_leader";
-    // A Team Leader can only look up Team Members; a Manager can look up anyone
-    if (isLeader) filter.role = "team_member";
+    // A Team Leader can only look up the Team Members of their own team(s); a Manager can look up anyone
+    if (isLeader) {
+      filter.role = "team_member";
+      const teams = await Team.find(await visibleTeamFilter(req.user)).select("members");
+      filter._id = { $in: teams.flatMap((t) => t.members) };
+    }
     else if (req.query.role) filter.role = req.query.role;
 
     if (req.query.search) {

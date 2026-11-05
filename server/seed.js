@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import connectDB from "./config/db.js";
 import User from "./models/User.js";
 import Project from "./models/Project.js";
+import Team from "./models/Team.js";
 import Task from "./models/Task.js";
 import DailyReport from "./models/DailyReport.js";
 import Review from "./models/Review.js";
@@ -81,6 +82,26 @@ const run = async () => {
     },
     "sample project: NexOra Demo Project"
   );
+
+  // Teams: joshua leads the demo team (Meera + Rohan) and it works on the demo project.
+  // Vikram leads an empty team, so you can practise adding members on the Teams page.
+  const demoTeam = await ensure(
+    Team,
+    { leader: leader._id }, // a leader leads at most one team
+    { teamName: "NexOra Demo Team", leader: leader._id, members: [meera._id, rohan._id] },
+    "team: NexOra Demo Team"
+  );
+  await ensure(
+    Team,
+    { leader: byEmail["leader@nexora.test"]._id },
+    { teamName: "Platform Team", leader: byEmail["leader@nexora.test"]._id, members: [] },
+    "team: Platform Team"
+  );
+  if (!project.team) {
+    project.team = demoTeam._id;
+    await project.save();
+    console.log("Linked: NexOra Demo Project -> NexOra Demo Team");
+  }
 
   const repoLink = "https://github.com/greesh1317/NexOra";
 

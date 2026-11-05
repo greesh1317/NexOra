@@ -60,10 +60,12 @@ describe("users", () => {
     expect(res.status).toBe(403);
   });
 
-  it("lets a team leader see only team members, never managers", async () => {
+  it("lets a team leader see only members of their own team, never managers", async () => {
     const leader = await makeUser("team_leader");
     await makeUser("manager");
-    await makeUser("team_member");
+    const mine = await makeUser("team_member");
+    await makeUser("team_member"); // not in the leader's team: must stay hidden
+    await Team.create({ teamName: "T", leader: leader._id, members: [mine._id] });
     const res = await request(app).get("/api/users?role=manager").set(authHeader(leader));
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1);

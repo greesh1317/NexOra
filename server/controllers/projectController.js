@@ -1,9 +1,29 @@
+import mongoose from "mongoose";
 import Project from "../models/Project.js";
 import Task from "../models/Task.js";
 import User from "../models/User.js";
+import Team from "../models/Team.js";
 
 // A project's leader must be a real Team Leader account
 const isTeamLeader = (id) => User.exists({ _id: id, role: "team_leader" });
+
+// A project linked to a team is led by that team's leader. Returns { error } or { team, leader }.
+// `leaderId` is what the caller asked for (may be undefined = no preference).
+async function applyTeam(teamId, leaderId) {
+  if (!teamId) return { team: null, leader: leaderId };
+  if (!mongoose.isValidObjectId(teamId)) return { error: "Invalid team" };
+
+  const team = await Team.findById(teamId).select("leader");
+  if (!team) return { error: "That team does not exist" };
+
+  if (team.leader) {
+    if (leaderId && String(leaderId) !== String(team.leader)) {
+      return { error: "The project leader must be the leader of the chosen team" };
+    }
+    return { team: team._id, leader: team.leader };
+  }
+  return { team: team._id, leader: leaderId };
+}
 
 // @desc    Get projects — Manager sees all, Team Leader sees projects they lead,
 //          Team Member sees only projects where they have a task (read-only)
@@ -42,14 +62,17 @@ export const createProject = async (req, res) => {
       return res.status(400).json({ message: "The project leader must be a Team Leader account" });
     }
 
+    const linked = await applyTeam(team, leader);
+    if (linked.error) return res.status(400).json({ message: linked.error });
+
     const project = await Project.create({
       title,
       description,
       status,
       startDate,
       endDate,
-      team,
-      leader,
+      team: linked.team,
+      leader: linked.leader,
     });
 
     res.status(201).json(project);
@@ -69,6 +92,18 @@ export const updateProject = async (req, res) => {
     if (updates.leader && !(await isTeamLeader(updates.leader))) {
       return res.status(400).json({ message: "The project leader must be a Team Leader account" });
     }
+
+    const existing = await Project.findById(req.params.id).select("team");
+    if (!existing) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Keep the project's team and leader consistent (the team's leader leads the project)
+    const effectiveTeam = updates.team !== undefined ? updates.team : existing.team;
+    const linked = await applyTeam(effectiveTeam, updates.leader);
+    if (linked.error) return res.status(400).json({ message: linked.error });
+    if (updates.team !== undefined) updates.team = linked.team;
+    if (linked.leader) updates.leader = linked.leader;
 
     const project = await Project.findByIdAndUpdate(req.params.id, updates, {
       new: true,
