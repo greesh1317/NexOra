@@ -1,5 +1,6 @@
 import Task from "../models/Task.js";
 import Notification from "../models/Notification.js";
+import Attachment from "../models/Attachment.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
 import { assigneeProblem } from "../utils/teamRules.js";
 
@@ -170,6 +171,7 @@ export const deleteTask = async (req, res) => {
     if (!(await canManageTask(req.user, task))) {
       return res.status(403).json({ message: "Not authorized to delete this task" });
     }
+    await Attachment.deleteMany({ task: task._id }); // its files go with it
     await task.deleteOne();
     res.status(200).json({ message: "Task deleted" });
   } catch (error) {

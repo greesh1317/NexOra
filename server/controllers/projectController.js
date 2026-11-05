@@ -3,6 +3,7 @@ import Project from "../models/Project.js";
 import Task from "../models/Task.js";
 import User from "../models/User.js";
 import Team from "../models/Team.js";
+import { cleanupProject } from "../utils/integrity.js";
 
 // A project's leader must be a real Team Leader account
 const isTeamLeader = (id) => User.exists({ _id: id, role: "team_leader" });
@@ -26,7 +27,7 @@ async function applyTeam(teamId, leaderId) {
 }
 
 // @desc    Get projects — Manager sees all, Team Leader sees projects they lead,
-//          Team Member sees only projects where they have a task (read-only)
+//          Team Member sees only their team's projects and projects where they have a task (read-only)
 // @route   GET /api/projects
 export const getProjects = async (req, res) => {
   try {
@@ -34,7 +35,10 @@ export const getProjects = async (req, res) => {
     if (req.user.role === "team_leader") {
       filter.leader = req.user._id;
     } else if (req.user.role === "team_member") {
-      filter._id = { $in: await Task.find({ assignedUser: req.user._id }).distinct("project") };
+      // Projects of the member's own team, plus any project they have a task in
+      const myTeamIds = await Team.find({ members: req.user._id }).distinct("_id");
+      const taskProjectIds = await Task.find({ assignedUser: req.user._id }).distinct("project");
+      filter.$or = [{ team: { $in: myTeamIds } }, { _id: { $in: taskProjectIds } }];
     }
 
     const projects = await Project.find(filter)
@@ -125,14 +129,19 @@ export const updateProject = async (req, res) => {
 // @route   DELETE /api/projects/:id
 export const deleteProject = async (req, res) => {
   try {
-    const project = await Project.findByIdAndDelete(req.params.id);
+    const project = await Project.findById(req.params.id);
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    res.status(200).json({ message: "Project deleted" });
+    // Delete its tasks + their files; reports and reviews stay as history without the project link
+    const { tasksDeleted } = await cleanupProject(project._id);
+    await project.deleteOne();
+
+    res.status(200).json({ message: "Project deleted", tasksDeleted });
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
     res.status(500).json({ message: "Failed to delete project", error: error.message });
   }
 };

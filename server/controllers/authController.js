@@ -64,6 +64,10 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "This account has been deactivated. Please contact your manager." });
+    }
+
     res.status(200).json({
       _id: user._id,
       name: user.name,

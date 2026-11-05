@@ -12,6 +12,7 @@ export const getUsers = async (req, res) => {
     // A Team Leader can only look up the Team Members of their own team(s); a Manager can look up anyone
     if (isLeader) {
       filter.role = "team_member";
+      filter.isActive = { $ne: false };
       const teams = await Team.find(await visibleTeamFilter(req.user)).select("members");
       filter._id = { $in: teams.flatMap((t) => t.members) };
     }
@@ -104,5 +105,29 @@ export const createUser = async (req, res) => {
     res.status(201).json({ _id: user._id, name: user.name, email: user.email, role: user.role });
   } catch (error) {
     res.status(500).json({ message: "Failed to create user", error: error.message });
+  }
+};
+
+// @desc    Deactivate or reactivate an account (Manager only). Nothing is deleted: the person simply
+//          cannot log in or receive new tasks, and their tasks, reports and reviews stay as history.
+// @route   PUT /api/users/:id/status   body: { isActive: true | false }
+export const setUserStatus = async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({ message: "isActive must be true or false" });
+    }
+
+    const target = await User.findById(req.params.id).select("role");
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.role === "manager") {
+      return res.status(400).json({ message: "Manager accounts cannot be deactivated" });
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive }, { new: true }).select("-password");
+    res.status(200).json(user);
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
+    res.status(500).json({ message: "Failed to update account status", error: error.message });
   }
 };

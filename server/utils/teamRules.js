@@ -54,8 +54,9 @@ export async function assigneeProblem(projectId, userId) {
   if (!userId) return null; // unassigned is fine
 
   if (!mongoose.isValidObjectId(userId)) return "Invalid assignee";
-  const user = await User.findById(userId).select("role");
+  const user = await User.findById(userId).select("role isActive");
   if (!user) return "That assignee does not exist";
+  if (user.isActive === false) return "That person's account is deactivated";
   if (user.role !== "team_member") return "Tasks can only be assigned to Team Members";
 
   if (!projectId) return null; // a task with no project has no team to check against

@@ -1,6 +1,7 @@
+import mongoose from "mongoose";
 import DailyReport from "../models/DailyReport.js";
-import Task from "../models/Task.js";
-import { leaderProjectIds } from "../utils/access.js";
+import { leaderProjectIds, leadsProject } from "../utils/access.js";
+import { workedOnProject } from "../utils/integrity.js";
 
 // Submission links must be real web links — blocks things like "javascript:..." being stored
 const isValidLink = (value) => !value || /^https?:\/\/\S+$/i.test(String(value).trim());
@@ -48,11 +49,25 @@ export const createReport = async (req, res) => {
       return res.status(400).json({ message: "Submission link must start with http:// or https://" });
     }
 
-    if (project && req.user.role === "team_member") {
-      const hasTask = await Task.exists({ project, assignedUser: req.user._id });
-      if (!hasTask) {
-        return res.status(403).json({ message: "You can only report on projects you have a task in" });
+    if (String(workDone).length > 5000) {
+      return res.status(400).json({ message: "Work done is limited to 5000 characters" });
+    }
+    if (hours !== undefined && hours !== null && hours !== "") {
+      const h = Number(hours);
+      if (!Number.isFinite(h) || h < 0 || h > 24) {
+        return res.status(400).json({ message: "Hours must be a number between 0 and 24" });
       }
+    }
+    if (project && !mongoose.isValidObjectId(project)) {
+      return res.status(400).json({ message: "Invalid project" });
+    }
+
+    // A member reports on a project they are part of; a leader only on a project they lead
+    if (project && req.user.role === "team_member" && !(await workedOnProject(project, req.user._id))) {
+      return res.status(403).json({ message: "You can only report on projects you are part of" });
+    }
+    if (project && req.user.role === "team_leader" && !(await leadsProject(req.user._id, project))) {
+      return res.status(403).json({ message: "You can only report on projects you lead" });
     }
 
     const report = await DailyReport.create({

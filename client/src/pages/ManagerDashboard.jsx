@@ -92,6 +92,38 @@ function ManagerDashboard() {
     }
   };
 
+  const handleDeleteProject = async (project) => {
+    const ok = window.confirm(
+      `Delete the project "${project.title}"?\n\nIts tasks and the files attached to those tasks will be deleted. ` +
+        "Daily reports and reviews are kept as history. This cannot be undone."
+    );
+    if (!ok) return;
+    setError("");
+    try {
+      await api.del(`/projects/${project._id}`, token);
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Failed to delete project");
+    }
+  };
+
+  const handleToggleActive = async (person) => {
+    const deactivating = person.isActive !== false;
+    if (
+      deactivating &&
+      !window.confirm(`Deactivate ${person.name}? They will no longer be able to log in or receive tasks. Their history is kept.`)
+    ) {
+      return;
+    }
+    setError("");
+    try {
+      const updated = await api.put(`/users/${person._id}/status`, { isActive: !deactivating }, token);
+      setSearchResults((prev) => prev.map((u) => (u._id === updated._id ? { ...u, isActive: updated.isActive } : u)));
+    } catch (err) {
+      setError(err.message || "Failed to update the account");
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     if (!userForm.name || !userForm.email || !userForm.password) return;
@@ -242,9 +274,19 @@ function ManagerDashboard() {
             <ul className="mt-4 text-sm text-slate-700 space-y-1">
               {searchResults.length === 0 && <li className="text-slate-400">No matches found.</li>}
               {searchResults.map((u) => (
-                <li key={u._id} className="flex justify-between border-b border-slate-50 py-1.5 last:border-0">
-                  <span>{u.name} · <span className="text-slate-400">{u.email}</span></span>
-                  <span className="text-xs text-slate-400 capitalize">{u.role.replace("_", " ")}</span>
+                <li key={u._id} className="flex items-center justify-between border-b border-slate-50 py-1.5 last:border-0">
+                  <span>
+                    {u.name} · <span className="text-slate-400">{u.email}</span>
+                    {u.isActive === false && <span className="ml-2 text-xs text-red-500">Deactivated</span>}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400 capitalize">{u.role.replace("_", " ")}</span>
+                    {u.role !== "manager" && (
+                      <button onClick={() => handleToggleActive(u)} className="text-xs text-indigo-600 hover:underline">
+                        {u.isActive === false ? "Reactivate" : "Deactivate"}
+                      </button>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -460,6 +502,9 @@ function ManagerDashboard() {
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => setEditingProject(p)} className="text-xs text-indigo-600 hover:underline">
                       Edit
+                    </button>
+                    <button onClick={() => handleDeleteProject(p)} className="text-xs text-red-500 hover:underline ml-3">
+                      Delete
                     </button>
                   </td>
                 </tr>

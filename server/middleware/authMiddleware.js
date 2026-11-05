@@ -15,6 +15,10 @@ export const protect = async (req, res, next) => {
       // The token is valid but the account was deleted
       return res.status(401).json({ message: "Not authorized, account no longer exists" });
     }
+    if (user.isActive === false) {
+      // 401 so the website logs the person out straight away
+      return res.status(401).json({ message: "Not authorized, this account has been deactivated" });
+    }
     req.user = user;
     return next();
   } catch (error) {

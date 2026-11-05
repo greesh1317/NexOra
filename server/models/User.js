@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema(
       enum: ["manager", "team_leader", "team_member"],
       default: "team_member",
     },
+    // false = deactivated: cannot log in or be given tasks, but all their history is kept
+    isActive: { type: Boolean, default: true },
     department: { type: String },
     skills: [{ type: String }],
   },

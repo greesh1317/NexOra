@@ -1,6 +1,11 @@
 import Review from "../models/Review.js";
+import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
+import User from "../models/User.js";
+import Team from "../models/Team.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
+import { visibleTeamFilter } from "../utils/teamRules.js";
+import { workedOnProject } from "../utils/integrity.js";
 
 // @desc    Get reviews — Team Member sees only reviews written about them, Team Leader sees
 //          reviews they wrote plus reviews on projects they lead, Manager sees everyone's
@@ -41,13 +46,41 @@ export const getReviews = async (req, res) => {
 // @route   POST /api/reviews
 export const createReview = async (req, res) => {
   try {
-    const { employee, project, rating, comments } = req.body;
+    const { employee, project, comments } = req.body;
+    const rating = Number(req.body.rating);
 
-    if (!employee || !rating) {
+    if (!employee || !req.body.rating) {
       return res.status(400).json({ message: "employee and rating are required" });
     }
-    if (project && req.user.role === "team_leader" && !(await leadsProject(req.user._id, project))) {
-      return res.status(403).json({ message: "You can only review work on projects you lead" });
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be a whole number from 1 to 5" });
+    }
+    if (comments && String(comments).length > 1000) {
+      return res.status(400).json({ message: "Comments are limited to 1000 characters" });
+    }
+    if (![employee, project].filter(Boolean).every((id) => mongoose.isValidObjectId(id))) {
+      return res.status(400).json({ message: "Invalid employee or project" });
+    }
+
+    // Only Team Members are reviewed (never a manager, a leader, or a made-up id)
+    const person = await User.findById(employee).select("role");
+    if (!person || person.role !== "team_member") {
+      return res.status(400).json({ message: "Reviews can only be written about Team Members" });
+    }
+
+    if (project) {
+      if (req.user.role === "team_leader" && !(await leadsProject(req.user._id, project))) {
+        return res.status(403).json({ message: "You can only review work on projects you lead" });
+      }
+      if (!(await workedOnProject(project, employee))) {
+        return res.status(400).json({ message: "That person is not part of this project's team" });
+      }
+    } else if (req.user.role === "team_leader") {
+      // No project chosen: a leader may only review someone in their own team
+      const ownTeam = await Team.exists({ $and: [await visibleTeamFilter(req.user), { members: employee }] });
+      if (!ownTeam) {
+        return res.status(403).json({ message: "You can only review members of your own team" });
+      }
     }
 
     const review = await Review.create({

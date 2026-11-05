@@ -30,6 +30,7 @@ function loadGithubPrefs() {
 function TeamMemberDashboard() {
   const { token, user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +52,14 @@ function TeamMemberDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [taskData, reportData, reviewData] = await Promise.all([
+      const [taskData, reportData, reviewData, projectData] = await Promise.all([
         api.get("/tasks", token),
         api.get("/reports", token),
         api.get("/reviews", token),
+        api.get("/projects", token).catch(() => []), // a failure here must not break the dashboard
       ]);
       setTasks(taskData);
+      setProjects(projectData);
       setReports(reportData);
       setReviews(reviewData);
     } catch (err) {
@@ -71,12 +74,13 @@ function TeamMemberDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The projects this member has a task in — they report against one of these
+  // The projects this member can report on: their team's projects plus any project they have a task in
   const myProjects = useMemo(() => {
     const seen = new Map();
+    projects.forEach((p) => seen.set(p._id, p));
     tasks.forEach((t) => t.project && seen.set(t.project._id, t.project));
     return [...seen.values()];
-  }, [tasks]);
+  }, [projects, tasks]);
 
   const handleStatusChange = async (taskId, status) => {
     setError("");
