@@ -154,8 +154,22 @@ export const updateTask = async (req, res) => {
       .populate("project", "title status")
       .populate("assignedUser", "name email role");
 
+    // Tell the new assignee when a task is (re)assigned to them — a failure must not undo the update
+    if (updates.assignedUser && String(updates.assignedUser) !== String(task.assignedUser)) {
+      try {
+        await Notification.create({
+          recipient: updates.assignedUser,
+          type: "assignment",
+          message: `You were assigned a task: "${updated.title}"`,
+        });
+      } catch (notifyError) {
+        console.error("Failed to create reassignment notification:", notifyError.message);
+      }
+    }
+
     res.status(200).json(updated);
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
     res.status(500).json({ message: "Failed to update task", error: error.message });
   }
 };

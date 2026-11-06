@@ -6,6 +6,8 @@ import TeamMemberDashboard from "./pages/TeamMemberDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
 import TeamsPage from "./pages/TeamsPage.jsx";
+import PeoplePage from "./pages/PeoplePage.jsx";
+import OverviewPage from "./pages/OverviewPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
@@ -31,6 +33,23 @@ function App() {
         element={
           <ProtectedRoute>
             <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/people"
+        element={
+          <ProtectedRoute roles={["manager"]}>
+            <PeoplePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/overview"
+        element={
+          <ProtectedRoute roles={["manager"]}>
+            <OverviewPage />
           </ProtectedRoute>
         }
       />

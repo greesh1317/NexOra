@@ -3,7 +3,7 @@ import Project from "../models/Project.js";
 import { checkTeamPeople, visibleTeamFilter } from "../utils/teamRules.js";
 
 const populateTeam = (query) =>
-  query.populate("leader", "name email role").populate("members", "name email role");
+  query.populate("leader", "name email role").populate("members", "name email role isActive");
 
 // @desc    Get the teams you are allowed to see
 // @route   GET /api/teams

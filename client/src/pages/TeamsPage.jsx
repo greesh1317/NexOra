@@ -21,8 +21,10 @@ function TeamForm({ team, teams, people, token, onSaved, onCancel }) {
   const memberTeam = new Map();
   others.forEach((t) => t.members.forEach((m) => memberTeam.set(m._id, t.teamName)));
 
-  const leaders = people.filter((p) => p.role === "team_leader");
-  const candidates = people.filter((p) => p.role === "team_member");
+  // Deactivated people are not offered, unless they already belong to this team (so they can be removed)
+  const stillOffered = (p, current) => p.isActive !== false || current;
+  const leaders = people.filter((p) => p.role === "team_leader" && stillOffered(p, p._id === leader));
+  const candidates = people.filter((p) => p.role === "team_member" && stillOffered(p, members.includes(p._id)));
 
   const toggle = (id) => setMembers((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
 
@@ -160,7 +162,7 @@ function TeamsPage() {
   };
 
   const inATeam = new Set(teams.flatMap((t) => t.members.map((m) => m._id)));
-  const unassigned = people.filter((p) => p.role === "team_member" && !inATeam.has(p._id));
+  const unassigned = people.filter((p) => p.role === "team_member" && p.isActive !== false && !inATeam.has(p._id));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -244,7 +246,13 @@ function TeamsPage() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {t.members.map((m) => (
-                    <span key={m._id} className="text-xs bg-slate-100 text-slate-700 rounded-full px-2.5 py-1">
+                    <span
+                      key={m._id}
+                      className={`text-xs rounded-full px-2.5 py-1 ${
+                        m.isActive === false ? "bg-red-50 text-red-400 line-through" : "bg-slate-100 text-slate-700"
+                      }`}
+                      title={m.isActive === false ? "Deactivated" : undefined}
+                    >
                       {m.name}
                     </span>
                   ))}

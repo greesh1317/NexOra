@@ -45,6 +45,16 @@ function Navbar() {
           <NavLink to="/teams" className={linkClass}>
             Teams
           </NavLink>
+          {user?.role === "manager" && (
+            <>
+              <NavLink to="/overview" className={linkClass}>
+                Overview
+              </NavLink>
+              <NavLink to="/people" className={linkClass}>
+                People
+              </NavLink>
+            </>
+          )}
           <NavLink to="/calendar" className={linkClass}>
             Calendar
           </NavLink>

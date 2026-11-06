@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Team from "../models/Team.js";
+import Notification from "../models/Notification.js";
 import { visibleTeamFilter } from "../utils/teamRules.js";
 
 // @desc    Get all users — optionally filter by role, and/or search by name/email
@@ -129,5 +130,44 @@ export const setUserStatus = async (req, res) => {
   } catch (error) {
     if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
     res.status(500).json({ message: "Failed to update account status", error: error.message });
+  }
+};
+
+// @desc    Manager sets a new password for someone who forgot theirs. The person's existing
+//          sessions end, and they get a notification asking them to change it after logging in.
+// @route   PUT /api/users/:id/password   body: { newPassword }
+export const resetUserPassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || String(newPassword).length < 8) {
+      return res.status(400).json({ message: "The new password must be at least 8 characters" });
+    }
+
+    const target = await User.findById(req.params.id).select("role");
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.role === "manager") {
+      return res.status(400).json({ message: "Managers change their own password from the account menu" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    await User.updateOne(
+      { _id: target._id },
+      { password: await bcrypt.hash(newPassword, salt), passwordChangedAt: new Date() }
+    );
+
+    try {
+      await Notification.create({
+        recipient: target._id,
+        type: "general",
+        message: "Your manager reset your password. Please change it from the account menu after you log in.",
+      });
+    } catch (notifyError) {
+      console.error("Failed to create password-reset notification:", notifyError.message);
+    }
+
+    res.status(200).json({ message: "Password reset" });
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid id" });
+    res.status(500).json({ message: "Failed to reset password", error: error.message });
   }
 };

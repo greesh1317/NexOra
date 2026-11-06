@@ -15,6 +15,10 @@ export const protect = async (req, res, next) => {
       // The token is valid but the account was deleted
       return res.status(401).json({ message: "Not authorized, account no longer exists" });
     }
+    // A password reset by the Manager ends every older session (tokens carry their issue time in `iat`)
+    if (user.passwordChangedAt && decoded.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+      return res.status(401).json({ message: "Not authorized, your password was reset. Please log in again" });
+    }
     if (user.isActive === false) {
       // 401 so the website logs the person out straight away
       return res.status(401).json({ message: "Not authorized, this account has been deactivated" });

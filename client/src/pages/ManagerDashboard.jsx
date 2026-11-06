@@ -58,8 +58,9 @@ function ManagerDashboard() {
       ]);
       setTeams(teamData);
       setProjects(projectData);
-      setLeaders(leaderData);
-      setMembers(memberData);
+      // Deactivated people are not offered for new assignments
+      setLeaders(leaderData.filter((u) => u.isActive !== false));
+      setMembers(memberData.filter((u) => u.isActive !== false));
       setAnalytics(analyticsData);
     } catch (err) {
       setError(err.message || "Failed to load dashboard data");

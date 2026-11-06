@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import ProofLink from "../components/ProofLink.jsx";
 import SummaryBadge from "../components/SummaryBadge.jsx";
+import TaskEditModal from "../components/TaskEditModal.jsx";
+import { membersForProject, projectHasTeam } from "../utils/teamHelpers.js";
 import { AttachmentChips, useAttachments } from "../components/Attachments.jsx";
 import { formatDeadline } from "../utils/dates.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -31,6 +33,8 @@ function TeamLeaderDashboard() {
   const { byTask, byReport, reload: reloadFiles } = useAttachments(token);
   const [projects, setProjects] = useState([]);
   const [members, setMembers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [editingTask, setEditingTask] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [reports, setReports] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -52,13 +56,15 @@ function TeamLeaderDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [projectData, memberData, taskData, reportData, reviewData] = await Promise.all([
+      const [projectData, memberData, taskData, reportData, reviewData, teamData] = await Promise.all([
         api.get("/projects", token),
         api.get("/users?role=team_member", token),
         api.get("/tasks", token),
         api.get("/reports", token),
         api.get("/reviews", token),
+        api.get("/teams", token).catch(() => []),
       ]);
+      setTeams(teamData);
       setProjects(projectData);
       setMembers(memberData);
       setTasks(taskData);
@@ -209,7 +215,7 @@ function TeamLeaderDashboard() {
             />
             <select
               value={form.project}
-              onChange={(e) => setForm({ ...form, project: e.target.value })}
+              onChange={(e) => setForm({ ...form, project: e.target.value, assignedUser: "" })}
               className={inputClass}
               required
             >
@@ -221,10 +227,17 @@ function TeamLeaderDashboard() {
             <select
               value={form.assignedUser}
               onChange={(e) => setForm({ ...form, assignedUser: e.target.value })}
-              className={inputClass}
+              disabled={!form.project || !projectHasTeam(form.project, projects)}
+              className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
             >
-              <option value="">Assign to a team member</option>
-              {members.map((m) => (
+              <option value="">
+                {!form.project
+                  ? "Choose a project first"
+                  : !projectHasTeam(form.project, projects)
+                  ? "This project has no team yet (ask your Manager)"
+                  : "Assign to a team member"}
+              </option>
+              {membersForProject(form.project, projects, teams).map((m) => (
                 <option key={m._id} value={m._id}>{m.name}</option>
               ))}
             </select>
@@ -272,12 +285,13 @@ function TeamLeaderDashboard() {
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Proof</th>
                 <th className="px-4 py-3">Files</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {!loading && tasks.length === 0 && (
                 <tr>
-                  <td className="px-4 py-4 text-slate-400" colSpan={6}>No tasks yet — assign one above.</td>
+                  <td className="px-4 py-4 text-slate-400" colSpan={7}>No tasks yet — assign one above.</td>
                 </tr>
               )}
               {tasks.map((t) => (
@@ -293,6 +307,11 @@ function TeamLeaderDashboard() {
                   <td className="px-4 py-3"><ProofLink url={t.submissionLink} /></td>
                   <td className="px-4 py-3 align-top">
                     <AttachmentChips files={byTask[t._id]} token={token} currentUser={user} onChanged={reloadFiles} onError={setError} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => setEditingTask(t)} className="text-xs text-indigo-600 hover:underline">
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -422,6 +441,18 @@ function TeamLeaderDashboard() {
           </table>
         </div>
       </main>
+      {editingTask && (
+        <TaskEditModal
+          task={editingTask}
+          candidates={membersForProject(editingTask.project?._id, projects, teams)}
+          token={token}
+          onClose={() => setEditingTask(null)}
+          onSaved={async () => {
+            setEditingTask(null);
+            await loadData();
+          }}
+        />
+      )}
     </div>
   );
 }

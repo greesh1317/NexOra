@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema(
     },
     // false = deactivated: cannot log in or be given tasks, but all their history is kept
     isActive: { type: Boolean, default: true },
+    // set when a Manager resets the password: login sessions created before this moment stop working
+    passwordChangedAt: { type: Date },
     department: { type: String },
     skills: [{ type: String }],
   },

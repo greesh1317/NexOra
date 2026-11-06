@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import ProofLink from "../components/ProofLink.jsx";
+import MyTeamCard from "../components/MyTeamCard.jsx";
 import { AttachButton, AttachmentChips, ACCEPT, MAX_FILE_BYTES, uploadFile, useAttachments } from "../components/Attachments.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
@@ -180,6 +181,8 @@ function TeamMemberDashboard() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
+        <MyTeamCard />
+
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{error}</p>
         )}
