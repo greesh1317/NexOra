@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import ResetPasswordModal from "../components/ResetPasswordModal.jsx";
+import Pagination from "../components/Pagination.jsx";
+import { useDebounced } from "../utils/useDebounced.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
 
@@ -10,35 +12,62 @@ const inputClass =
 const roleLabels = { manager: "Manager", team_leader: "Team Leader", team_member: "Team Member" };
 
 // Manager only: everyone in one table, with deactivate/reactivate and password reset.
+const LIMIT = 20;
+
 function PeoplePage() {
   const { token } = useAuth();
   const [people, setPeople] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [page, setPage] = useState(1);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search);
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [resetting, setResetting] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const requestId = useRef(0);
 
-  const load = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [peopleData, teamData] = await Promise.all([api.get("/users", token), api.get("/teams", token)]);
-      setPeople(peopleData);
-      setTeams(teamData);
-    } catch (err) {
-      setError(err.message || "Failed to load people");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Teams are only needed to show which team each person is in — once
   useEffect(() => {
-    load();
+    api.get("/teams", token).then(setTeams).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A new filter always starts again from page 1
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, role, status]);
+
+  // One page of people, filtered by the server
+  useEffect(() => {
+    const myId = ++requestId.current;
+    setLoading(true);
+    setError("");
+    const q = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (debouncedSearch.trim()) q.set("search", debouncedSearch.trim());
+    if (role) q.set("role", role);
+    if (status) q.set("status", status);
+
+    api
+      .get(`/users?${q.toString()}`, token)
+      .then((res) => {
+        if (myId !== requestId.current) return;
+        if (res.items.length === 0 && res.total > 0 && page > res.pages) {
+          setPage(res.pages);
+          return;
+        }
+        setPeople(res.items);
+        setTotal(res.total);
+        setPageCount(res.pages);
+      })
+      .catch((err) => myId === requestId.current && setError(err.message || "Failed to load people"))
+      .finally(() => myId === requestId.current && setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, role, status, reloadKey]);
 
   const teamOf = (person) => {
     const team = teams.find(
@@ -47,16 +76,7 @@ function PeoplePage() {
     return team?.teamName || "";
   };
 
-  const visible = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return people.filter((p) => {
-      if (role && p.role !== role) return false;
-      if (status === "active" && p.isActive === false) return false;
-      if (status === "inactive" && p.isActive !== false) return false;
-      if (term && !`${p.name} ${p.email}`.toLowerCase().includes(term)) return false;
-      return true;
-    });
-  }, [people, search, role, status]);
+  const visible = people;
 
   const toggleActive = async (person) => {
     const deactivating = person.isActive !== false;
@@ -68,8 +88,8 @@ function PeoplePage() {
     }
     setError("");
     try {
-      const updated = await api.put(`/users/${person._id}/status`, { isActive: !deactivating }, token);
-      setPeople((prev) => prev.map((p) => (p._id === updated._id ? { ...p, isActive: updated.isActive } : p)));
+      await api.put(`/users/${person._id}/status`, { isActive: !deactivating }, token);
+      setReloadKey((k) => k + 1);
     } catch (err) {
       setError(err.message || "Failed to update the account");
     }
@@ -158,6 +178,7 @@ function PeoplePage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} pages={pageCount} total={total} limit={LIMIT} onPage={setPage} />
         </div>
       </main>
       {resetting && <ResetPasswordModal person={resetting} token={token} onClose={() => setResetting(null)} />}

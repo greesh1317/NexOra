@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Team from "../models/Team.js";
 import Notification from "../models/Notification.js";
 import { visibleTeamFilter } from "../utils/teamRules.js";
+import { getPaging, listResult } from "../utils/paging.js";
 
 // @desc    Get all users — optionally filter by role, and/or search by name/email
 // @route   GET /api/users?role=team_leader&search=mee
@@ -17,7 +18,12 @@ export const getUsers = async (req, res) => {
       const teams = await Team.find(await visibleTeamFilter(req.user)).select("members");
       filter._id = { $in: teams.flatMap((t) => t.members) };
     }
-    else if (req.query.role) filter.role = req.query.role;
+    else {
+      if (req.query.role) filter.role = req.query.role;
+      // Optional ?status=active|inactive (Manager)
+      if (req.query.status === "active") filter.isActive = { $ne: false };
+      if (req.query.status === "inactive") filter.isActive = false;
+    }
 
     if (req.query.search) {
       const term = String(req.query.search).trim();
@@ -28,9 +34,12 @@ export const getUsers = async (req, res) => {
       }
     }
 
-    const users = await User.find(filter)
-      .select(isLeader ? "name email role" : "-password")
-      .sort({ name: 1 });
+    const users = await listResult(
+      User,
+      filter,
+      (q) => q.select(isLeader ? "name email role" : "-password").sort({ name: 1, _id: 1 }), // _id breaks ties (two people can share a name)
+      getPaging(req.query)
+    );
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch users", error: error.message });

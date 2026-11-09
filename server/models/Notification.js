@@ -14,4 +14,7 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+
 export default mongoose.model("Notification", notificationSchema);

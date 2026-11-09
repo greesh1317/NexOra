@@ -6,6 +6,7 @@ import Team from "../models/Team.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
 import { visibleTeamFilter } from "../utils/teamRules.js";
 import { workedOnProject } from "../utils/integrity.js";
+import { getPaging, listResult, searchRegex } from "../utils/paging.js";
 
 // @desc    Get reviews — Team Member sees only reviews written about them, Team Leader sees
 //          reviews they wrote plus reviews on projects they lead, Manager sees everyone's
@@ -17,11 +18,19 @@ export const getReviews = async (req, res) => {
     if (req.user.role === "team_member") {
       filter.employee = req.user._id;
     }
-    if (req.query.project) {
+    if (req.query.project === "none" && req.user.role === "manager") {
+      filter.project = null; // reviews whose project was deleted (history)
+    } else if (req.query.project) {
       filter.project = req.query.project;
     }
     if (req.query.employee && req.user.role !== "team_member") {
       filter.employee = req.query.employee;
+    }
+    // Optional ?search= (comments, or the employee's / reviewer's name)
+    if (req.query.search && String(req.query.search).trim()) {
+      const regex = searchRegex(req.query.search);
+      const userIds = await User.find({ name: regex }).distinct("_id");
+      filter.$or = [{ comments: regex }, { employee: { $in: userIds } }, { reviewer: { $in: userIds } }];
     }
 
     let query = filter;
@@ -30,14 +39,17 @@ export const getReviews = async (req, res) => {
       query = { $and: [filter, { $or: [{ reviewer: req.user._id }, { project: { $in: ids } }] }] };
     }
 
-    const reviews = await Review.find(query)
-      .populate("reviewer", "name role")
-      .populate("employee", "name role")
-      .populate("project", "title")
-      .sort({ createdAt: -1 });
+    const reviews = await listResult(
+      Review,
+      query,
+      (q) =>
+        q.populate("reviewer", "name role").populate("employee", "name role").populate("project", "title").sort({ createdAt: -1, _id: -1 }), // _id breaks ties so pages never repeat or skip rows
+      getPaging(req.query)
+    );
 
     res.status(200).json(reviews);
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid filter" });
     res.status(500).json({ message: "Failed to fetch reviews", error: error.message });
   }
 };

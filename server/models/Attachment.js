@@ -17,4 +17,8 @@ const attachmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+attachmentSchema.index({ task: 1 });
+attachmentSchema.index({ report: 1 });
+
 export default mongoose.model("Attachment", attachmentSchema);

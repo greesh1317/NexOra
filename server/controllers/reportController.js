@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import DailyReport from "../models/DailyReport.js";
+import User from "../models/User.js";
+import { getPaging, listResult, searchRegex } from "../utils/paging.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
 import { workedOnProject } from "../utils/integrity.js";
 
@@ -20,17 +22,29 @@ export const getReports = async (req, res) => {
       const ids = await leaderProjectIds(req.user._id);
       const wanted = req.query.project;
       filter.project = wanted ? (ids.some((i) => String(i) === String(wanted)) ? wanted : { $in: [] }) : { $in: ids };
+    } else if (req.query.project === "none") {
+      filter.project = null; // Manager only: reports whose project was deleted (history)
     } else if (req.query.project) {
       filter.project = req.query.project;
     }
 
-    const reports = await DailyReport.find(filter)
-      .populate("user", "name email role")
-      .populate("project", "title")
-      .sort({ date: -1 });
+    // Optional ?search= (work description or person's name)
+    if (req.query.search && String(req.query.search).trim()) {
+      const regex = searchRegex(req.query.search);
+      const userIds = await User.find({ name: regex }).distinct("_id");
+      filter.$and = [{ $or: [{ workDone: regex }, { user: { $in: userIds } }] }];
+    }
+
+    const reports = await listResult(
+      DailyReport,
+      filter,
+      (q) => q.populate("user", "name email role").populate("project", "title").sort({ date: -1, _id: -1 }), // _id breaks ties so pages never repeat or skip rows
+      getPaging(req.query)
+    );
 
     res.status(200).json(reports);
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid filter" });
     res.status(500).json({ message: "Failed to fetch reports", error: error.message });
   }
 };

@@ -14,6 +14,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import summaryRoutes from "./routes/summaryRoutes.js";
 import attachmentRoutes from "./routes/attachmentRoutes.js";
 import { hideErrorDetails } from "./middleware/hideErrorDetails.js";
+import { dbIsUp } from "./config/db.js";
 
 const app = express();
 
@@ -31,6 +32,19 @@ app.use(hideErrorDetails);
 
 app.get("/", (req, res) => {
   res.json({ message: "NexOra API is running" });
+});
+
+// For uptime monitors and deployment checks: 200 when everything works, 503 when the database is down
+app.get("/health", (req, res) => {
+  const up = dbIsUp();
+  res.status(up ? 200 : 503).json({ status: up ? "ok" : "degraded", database: up ? "connected" : "disconnected" });
+});
+
+// While MongoDB is unreachable, answer clearly and quickly instead of letting requests hang or crash
+app.use("/api", (req, res, next) => {
+  if (dbIsUp()) return next();
+  res.set("Retry-After", "5");
+  res.status(503).json({ message: "The database is temporarily unavailable. Please try again in a moment." });
 });
 
 app.use("/api/auth", authRoutes);

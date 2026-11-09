@@ -17,4 +17,8 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+projectSchema.index({ leader: 1 });
+projectSchema.index({ team: 1 });
+
 export default mongoose.model("Project", projectSchema);

@@ -1,6 +1,8 @@
 import Task from "../models/Task.js";
 import Notification from "../models/Notification.js";
 import Attachment from "../models/Attachment.js";
+import User from "../models/User.js";
+import { getPaging, listResult, searchRegex } from "../utils/paging.js";
 import { leaderProjectIds, leadsProject } from "../utils/access.js";
 import { assigneeProblem } from "../utils/teamRules.js";
 
@@ -25,13 +27,26 @@ export const getTasks = async (req, res) => {
       filter.project = req.query.project;
     }
 
-    const tasks = await Task.find(filter)
-      .populate("project", "title status")
-      .populate("assignedUser", "name email role")
-      .sort({ createdAt: -1 });
+    // Optional filters (used by the Manager Overview): ?status= and ?search= (title or assignee name)
+    if (["not_started", "in_progress", "completed", "blocked"].includes(req.query.status)) {
+      filter.status = req.query.status;
+    }
+    if (req.query.search && String(req.query.search).trim()) {
+      const regex = searchRegex(req.query.search);
+      const userIds = await User.find({ name: regex }).distinct("_id");
+      filter.$and = [{ $or: [{ title: regex }, { assignedUser: { $in: userIds } }] }];
+    }
+
+    const tasks = await listResult(
+      Task,
+      filter,
+      (q) => q.populate("project", "title status").populate("assignedUser", "name email role").sort({ createdAt: -1, _id: -1 }), // _id breaks ties so pages never repeat or skip rows
+      getPaging(req.query)
+    );
 
     res.status(200).json(tasks);
   } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid filter" });
     res.status(500).json({ message: "Failed to fetch tasks", error: error.message });
   }
 };

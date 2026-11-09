@@ -59,3 +59,22 @@ All routes except `/api/auth/*` require `Authorization: Bearer <token>` (the JWT
 1. `POST /api/auth/login` → `{ _id, name, email, role, token }`.
 2. The frontend stores the token (`localStorage`, via `AuthContext`) and sends it on every request.
 3. `middleware/authMiddleware.js`: `protect` verifies the token and loads the user; `authorize(...roles)` returns `403` for the wrong role.
+
+## Paging, filters and health
+
+**Paging (optional).** `GET /api/tasks`, `/api/reports`, `/api/reviews` and `/api/users` answer with a plain array, exactly as before. Add `?page=1&limit=20` (limit 1–100, default 20) and they answer `{ items, total, page, limit, pages }` instead. The Manager **Overview** and **People** pages use this.
+
+**Filters** (applied by the server, so they work across every page, and only ever narrow what the caller may already see):
+
+| Endpoint | Filters |
+|---|---|
+| `/api/tasks` | `project`, `status` (`not_started` / `in_progress` / `completed` / `blocked`), `search` (task title or assignee name) |
+| `/api/reports` | `project` (Manager: `none` = reports whose project was deleted), `search` (work description or person's name) |
+| `/api/reviews` | `project` (Manager: `none`), `employee`, `search` (comments, or the employee's / reviewer's name) |
+| `/api/users` | `role`, `search` (name or email), `status` (`active` / `inactive`, Manager only) |
+
+A malformed id in a filter answers `400`, not a server error.
+
+**Health and outages.** `GET /health` answers `200 { status: "ok", database: "connected" }`, or `503 { status: "degraded", database: "disconnected" }` when MongoDB is unreachable. While the database is down every `/api/*` request answers `503` ("temporarily unavailable", `Retry-After: 5`) instead of hanging; the server keeps retrying the connection and recovers on its own.
+
+**Uploads.** Besides the extension allow-list, a file's first bytes must match its type (a renamed program is refused with `400`), empty files are refused, and the stored content type is decided by the server, not by the uploader's browser.

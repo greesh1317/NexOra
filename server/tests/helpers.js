@@ -13,6 +13,11 @@ export async function startDb() {
   await mongoose.connect(mongod.getUri());
 }
 
+// Reconnect to the same in-memory database (used to test recovery after an outage)
+export async function reconnectDb() {
+  await mongoose.connect(mongod.getUri());
+}
+
 export async function stopDb() {
   await mongoose.disconnect();
   await mongod.stop();

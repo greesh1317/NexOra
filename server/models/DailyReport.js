@@ -14,4 +14,8 @@ const dailyReportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+dailyReportSchema.index({ user: 1, date: -1 });
+dailyReportSchema.index({ project: 1, date: -1 });
+
 export default mongoose.model("DailyReport", dailyReportSchema);

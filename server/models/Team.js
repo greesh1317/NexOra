@@ -9,4 +9,8 @@ const teamSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+teamSchema.index({ leader: 1 });
+teamSchema.index({ members: 1 });
+
 export default mongoose.model("Team", teamSchema);

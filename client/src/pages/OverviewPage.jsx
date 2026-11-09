@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import ProofLink from "../components/ProofLink.jsx";
 import TaskEditModal from "../components/TaskEditModal.jsx";
@@ -6,6 +6,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
 import { formatDeadline } from "../utils/dates.js";
 import { membersForProject } from "../utils/teamHelpers.js";
+import { useDebounced } from "../utils/useDebounced.js";
+import Pagination from "../components/Pagination.jsx";
 
 const inputClass =
   "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -20,69 +22,91 @@ const statusStyles = {
 const day = (value) => (value ? new Date(value).toLocaleDateString() : "");
 
 // Manager only: every task, daily report and review in one place, filterable by project.
+const LIMIT = 20;
+const TABS = ["tasks", "reports", "reviews"];
+const blank = { items: [], total: 0, pages: 1 };
+
 function OverviewPage() {
   const { token } = useAuth();
   const [tab, setTab] = useState("tasks");
-  const [tasks, setTasks] = useState([]);
-  const [reports, setReports] = useState([]);
-  const [reviews, setReviews] = useState([]);
+  const [project, setProject] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search);
+  const [pages, setPages] = useState({ tasks: 1, reports: 1, reviews: 1 });
+  const [data, setData] = useState({ tasks: blank, reports: blank, reviews: blank });
   const [projects, setProjects] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [project, setProject] = useState("");
-  const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const requestId = useRef(0);
 
-  const load = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [t, r, v, p, tm] = await Promise.all([
-        api.get("/tasks", token),
-        api.get("/reports", token),
-        api.get("/reviews", token),
-        api.get("/projects", token),
-        api.get("/teams", token),
-      ]);
-      setTasks(t);
-      setReports(r);
-      setReviews(v);
-      setProjects(p);
-      setTeams(tm);
-    } catch (err) {
-      setError(err.message || "Failed to load the overview");
-    } finally {
-      setLoading(false);
-    }
+  // Filters are applied by the server, so paging stays correct (filtering only the visible page would not be)
+  const queryFor = (page, limit) => {
+    const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (project) q.set("project", project);
+    if (debouncedSearch.trim()) q.set("search", debouncedSearch.trim());
+    return q.toString();
   };
 
+  // Projects and teams (for the filter box and the task editor) — once
   useEffect(() => {
-    load();
+    Promise.all([api.get("/projects", token), api.get("/teams", token)])
+      .then(([p, t]) => {
+        setProjects(p);
+        setTeams(t);
+      })
+      .catch((err) => setError(err.message || "Failed to load projects"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const term = search.trim().toLowerCase();
-  const matches = (projectId, text) =>
-    (!project || (project === "none" ? !projectId : projectId === project)) && (!term || text.toLowerCase().includes(term));
+  // A new filter always starts again from page 1
+  useEffect(() => {
+    setPages({ tasks: 1, reports: 1, reviews: 1 });
+  }, [project, debouncedSearch]);
 
-  const shownTasks = useMemo(
-    () => tasks.filter((t) => matches(t.project?._id, `${t.title} ${t.assignedUser?.name || ""}`)),
-    [tasks, project, term] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const shownReports = useMemo(
-    () => reports.filter((r) => matches(r.project?._id, `${r.user?.name || ""} ${r.workDone || ""}`)),
-    [reports, project, term] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const shownReviews = useMemo(
-    () => reviews.filter((v) => matches(v.project?._id, `${v.employee?.name || ""} ${v.reviewer?.name || ""} ${v.comments || ""}`)),
-    [reviews, project, term] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  // The visible tab: one page of rows
+  useEffect(() => {
+    const myId = ++requestId.current;
+    setLoading(true);
+    setError("");
+    api
+      .get(`/${tab}?${queryFor(pages[tab], LIMIT)}`, token)
+      .then((res) => {
+        if (myId !== requestId.current) return; // a newer request replaced this one
+        if (res.items.length === 0 && res.total > 0 && pages[tab] > res.pages) {
+          setPages((prev) => ({ ...prev, [tab]: res.pages })); // e.g. the last row of the last page was deleted
+          return;
+        }
+        setData((prev) => ({ ...prev, [tab]: res }));
+      })
+      .catch((err) => myId === requestId.current && setError(err.message || "Failed to load"))
+      .finally(() => myId === requestId.current && setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, pages[tab], project, debouncedSearch, reloadKey]);
+
+  // The counts shown on the tab buttons (1 row per tab is enough to get the total)
+  useEffect(() => {
+    TABS.forEach((t) => {
+      api
+        .get(`/${t}?${queryFor(1, 1)}`, token)
+        .then((res) => setData((prev) => ({ ...prev, [t]: { ...prev[t], total: res.total } })))
+        .catch(() => {});
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, debouncedSearch, reloadKey]);
+
+  const current = data[tab];
+  const shownTasks = data.tasks.items;
+  const shownReports = data.reports.items;
+  const shownReviews = data.reviews.items;
+  const goToPage = (page) => setPages((prev) => ({ ...prev, [tab]: page }));
 
   const tabs = [
-    ["tasks", `Tasks (${shownTasks.length})`],
-    ["reports", `Daily reports (${shownReports.length})`],
-    ["reviews", `Reviews (${shownReviews.length})`],
+    ["tasks", `Tasks (${data.tasks.total})`],
+    ["reports", `Daily reports (${data.reports.total})`],
+    ["reviews", `Reviews (${data.reviews.total})`],
   ];
 
   const th = "px-4 py-3";
@@ -228,6 +252,7 @@ function OverviewPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={current.page || pages[tab]} pages={current.pages} total={current.total} limit={LIMIT} onPage={goToPage} />
         </div>
       </main>
 
@@ -237,9 +262,9 @@ function OverviewPage() {
           candidates={membersForProject(editing.project?._id, projects, teams)}
           token={token}
           onClose={() => setEditing(null)}
-          onSaved={async () => {
+          onSaved={() => {
             setEditing(null);
-            await load();
+            setReloadKey((k) => k + 1);
           }}
         />
       )}

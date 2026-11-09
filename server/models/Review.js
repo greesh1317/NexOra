@@ -11,4 +11,8 @@ const reviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+reviewSchema.index({ employee: 1, createdAt: -1 });
+reviewSchema.index({ project: 1 });
+
 export default mongoose.model("Review", reviewSchema);

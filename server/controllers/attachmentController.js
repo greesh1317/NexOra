@@ -4,6 +4,7 @@ import Attachment from "../models/Attachment.js";
 import Task from "../models/Task.js";
 import DailyReport from "../models/DailyReport.js";
 import { attachmentAccessFilter, leadsProject } from "../utils/access.js";
+import { contentMatchesExtension, mimeForExtension } from "../utils/fileSignature.js";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file
 const MAX_PER_TARGET = 10; // files per task / report
@@ -82,6 +83,15 @@ export const createAttachment = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Choose a file to upload" });
     }
+    // The file's real contents must match its extension (a renamed program is refused)
+    const extension = path.extname(req.file.originalname).toLowerCase();
+    if (req.file.size === 0) {
+      return res.status(400).json({ message: "That file is empty" });
+    }
+    if (!contentMatchesExtension(extension, req.file.buffer)) {
+      return res.status(400).json({ message: `This file's contents do not match its "${extension}" type, so it was not uploaded.` });
+    }
+
     const { task: taskId, report: reportId } = req.body;
     if (Boolean(taskId) === Boolean(reportId)) {
       return res.status(400).json({ message: "Attach the file to either a task or a report" });
@@ -115,7 +125,7 @@ export const createAttachment = async (req, res) => {
 
     const doc = await Attachment.create({
       filename: safeName,
-      mimeType: req.file.mimetype,
+      mimeType: mimeForExtension(extension), // decided by us, not by the uploader's browser
       size: req.file.size,
       data: req.file.buffer,
       uploadedBy: req.user._id,

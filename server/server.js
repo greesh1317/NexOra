@@ -1,5 +1,5 @@
 import "dotenv/config"; // first import: loads server/.env BEFORE any other file reads process.env
-import connectDB from "./config/db.js";
+import { connectWithRetry } from "./config/db.js";
 import app from "./app.js";
 import { getJwtSecret } from "./utils/token.js";
 
@@ -11,7 +11,7 @@ try {
   process.exit(1);
 }
 
-connectDB();
+connectWithRetry(); // keeps trying in the background; /health reports the state meanwhile
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

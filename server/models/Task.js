@@ -23,4 +23,8 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for the lookups the app does most often
+taskSchema.index({ project: 1, createdAt: -1 });
+taskSchema.index({ assignedUser: 1 });
+
 export default mongoose.model("Task", taskSchema);
