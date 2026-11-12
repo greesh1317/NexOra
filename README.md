@@ -1,80 +1,206 @@
 # NexOra — Stress-Free Team Management Platform
 
-A centralized, role-based team and project management platform. **Managers** create projects and onboard people,
-**Team Leaders** assign tasks, read daily reports and review their team, and **Team Members** update tasks, attach
-proof-of-work links and submit daily reports — with notifications, analytics and an AI progress summary.
+**NexOra** is a centralized, role-based team and project management platform designed to simplify collaboration, task tracking, progress monitoring, and team coordination.
 
-## Features
+It provides separate workspaces for Managers, Team Leaders, and Team Members, allowing each role to manage responsibilities efficiently through a single platform.
 
-- JWT authentication with three roles, role-based dashboards and protected routes
-- Projects, tasks (with deadlines and priority), daily reports
-- **Proof of work**: paste a link (with a one-click helper that builds today's GitHub commits link) **or upload a file** (PDF, image, Office file, zip — up to 5 MB) on any task or daily report
-- **Deadline calendar** for every role: task deadlines and project due dates, with overdue and next-7-days lists
-- Each Team Leader sees only the projects they lead (tasks, reports, reviews, files, analytics)
-- Change your own password from the navbar
-- **Reviews & feedback** (1–5 stars + comments)
-- **Notifications** (task assigned, review received) and in-app deadline reminders
-- **Employee search** and **project analytics** (completion rate, top contributors)
-- **AI progress summary** (Anthropic API) with an automatic computed fallback
-- Managers add Team Leaders / Team Members from the dashboard (no public sign-up)
+Built using the **MERN stack**, NexOra combines secure authentication, project and task management, daily reporting, notifications, file attachments, and analytics into one integrated application.
 
-## Tech Stack
+---
 
-| Component       | Technology                          |
-|------------------|--------------------------------------|
-| Frontend         | React (Vite) + Tailwind CSS          |
-| Backend          | Node.js + Express                    |
-| Database         | MongoDB + Mongoose                   |
-| Authentication   | JWT + bcrypt                         |
-| AI               | Anthropic API (`@anthropic-ai/sdk`)  |
-| API testing      | Postman                              |
-| Version control  | Git + GitHub                         |
+## Project Overview
+
+NexOra follows a three-level role-based management structure:
+
+- **Manager:** Creates projects, manages employees and teams, monitors overall progress, and reviews organizational analytics.
+- **Team Leader:** Manages assigned projects, assigns tasks, monitors team performance, reviews daily reports, and tracks deadlines.
+- **Team Member:** Views assigned tasks, updates task status, uploads proof of work, and submits daily progress reports.
+
+Each role has access only to the information and operations permitted by its responsibilities.
+
+## Key Features
+
+### 1. Authentication and Access Control
+- JWT-based authentication.
+- Three roles: Manager, Team Leader, and Team Member.
+- Protected frontend routes and backend authorization.
+- Role-specific dashboards.
+- Password management and secure password reset.
+- Deactivated user handling.
+
+### 2. Project and Team Management
+- Create and manage projects and teams.
+- Assign Team Leaders and Team Members.
+- Link projects with teams.
+- Manage team membership and project assignments.
+- Maintain project ownership when team leadership changes.
+- Prevent unsafe deletion of teams and projects.
+
+### 3. Task Management
+- Create and assign tasks.
+- Set deadlines and priorities.
+- Update task statuses.
+- Track completed, pending, overdue, and in-progress tasks.
+- Reassign tasks with notifications.
+- Enforce role-based task assignment rules.
+
+### 4. Daily Reports and Proof of Work
+- Submit daily work reports.
+- Track employee progress.
+- Attach proof of work through links or file uploads.
+- Support PDF, image, Office, and ZIP attachments (up to 5 MB).
+- Validate uploaded file types and content.
+
+### 5. Notifications and Reviews
+- Notifications for task assignments.
+- Notifications when reviews are received.
+- Team feedback and performance reviews.
+- Rating-based reviews with comments.
+- In-app deadline reminders.
+
+### 6. Analytics and Reporting
+- Dedicated Analytics pages for Managers and Team Leaders.
+- Project completion statistics.
+- Task status distribution.
+- Weekly task completion trends.
+- Employee workload monitoring.
+- Overdue task tracking.
+- Project-wise performance comparisons.
+- Date-based reporting for the last 7 or 30 days.
+- CSV report downloads for spreadsheet analysis.
+- PDF reports through browser print functionality.
+
+### 7. Reliability and Security
+- Server-side pagination and filtering.
+- Database indexes for efficient queries.
+- Input and file validation.
+- Safe project and team deletion rules.
+- MongoDB connection monitoring and recovery.
+- Health-check endpoint.
+- CSV formula-injection protection.
+
+---
+
+## Technology Stack
+
+| Component | Technology |
+|---|---|
+| Frontend | React.js, Vite |
+| Styling | Tailwind CSS |
+| Backend | Node.js, Express.js |
+| Database | MongoDB, Mongoose |
+| Authentication | JWT, bcrypt |
+| API Testing | Postman, automated backend tests |
+| Version Control | Git, GitHub |
+| Development Tools | VS Code, npm |
+
+---
 
 ## Project Structure
 
-```
+```text
 nexora-team-management/
-├── client/                  # React frontend
+│
+├── client/
 │   └── src/
-│       ├── api/             # fetch wrapper that attaches the JWT
-│       ├── context/         # AuthContext — login / logout / current user
-│       ├── components/      # Navbar, NotificationBell, ProofLink, ProtectedRoute, ...
-│       ├── pages/           # Login + 3 role dashboards + Calendar + Unauthorized
-│       └── utils/           # GitHub link builder, safe-link check, date helpers
-├── server/                  # Express backend
-│   ├── config/              # DB connection
-│   ├── controllers/         # auth, users, projects, teams, tasks, reports, reviews,
-│   │                        # notifications, analytics, summary (AI), attachments (files)
-│   ├── models/              # 7 Mongoose schemas
-│   ├── routes/
-│   ├── middleware/          # JWT verification + role authorization
-│   ├── utils/               # access rules (which projects/files a leader may see)
-│   ├── seed.js              # demo accounts + sample data
-│   └── server.js
-└── docs/                    # ER diagram, API reference, review checklists, deployment guide
+│       ├── api/              # API communication
+│       ├── context/          # Authentication context
+│       ├── components/       # Reusable UI components
+│       │   ├── Navbar
+│       │   └── AnalyticsPanel
+│       ├── pages/            # Application pages
+│       │   ├── Login
+│       │   ├── ManagerDashboard
+│       │   ├── TeamLeaderDashboard
+│       │   ├── TeamMemberDashboard
+│       │   └── AnalyticsPage
+│       └── utils/            # Helper functions
+│
+├── server/
+│   ├── config/               # Database configuration
+│   ├── controllers/          # Application logic
+│   ├── middleware/           # Authentication and authorization
+│   ├── models/               # Mongoose schemas
+│   ├── routes/               # API routes
+│   ├── tests/                # Automated backend tests
+│   ├── utils/                # Analytics, CSV and report utilities
+│   ├── seed.js               # Demo data generation
+│   └── server.js             # Backend entry point
+│
+└── docs/
+    └── API_LIST.md           # API documentation
 ```
+
+---
+
+## Development Journey
+
+NexOra was developed incrementally through six major phases.
+
+| Phase | Development Focus | Major Deliverables |
+|---|---|---|
+| Phase 1 | Core application | JWT authentication, role-based dashboards, tasks and daily reports |
+| Phase 2 | Team management | Teams, memberships, project-team relationships and assignment rules |
+| Phase 3 | Data integrity | Safe deletion, integrity rules and deactivated user handling |
+| Phase 4 | Manager functionality | Overview, employee management, password reset and notifications |
+| Phase 5 | Reliability and security | Pagination, filtering, file validation, database recovery and indexes |
+| Phase 6 | Analytics and reporting | Analytics dashboards, workload reports, weekly trends, CSV and PDF exports |
+
+Each phase builds on the previous implementation to make the platform more complete, reliable, and maintainable.
+
+---
 
 ## Getting Started
 
-### 1. Backend
+### Prerequisites
+
+- Node.js and npm
+- MongoDB installed and running locally, or a MongoDB Atlas connection.
+- Git
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/greesh1317/NexOra.git
+cd NexOra
+```
+
+### 2. Set Up the Backend
 
 ```bash
 cd server
 npm install
-cp .env.example .env        # Windows: copy .env.example .env
-npm run seed                # one time — creates demo accounts and sample data
+```
+
+Create a `.env` file inside the `server` directory:
+
+```env
+MONGO_URI=mongodb://127.0.0.1:27017/nexora
+JWT_SECRET=your_long_random_secret
+PORT=5000
+```
+
+Run the seed script if you want to populate the database with demo data:
+
+```bash
+npm run seed
+```
+
+Start the backend:
+
+```bash
 npm run dev
 ```
 
-Fill in `server/.env`:
+The backend runs on:
 
-| Variable | Purpose |
-|----------|---------|
-| `MONGO_URI` | `mongodb://127.0.0.1:27017/nexora` for a local MongoDB (make sure the MongoDB service is running) |
-| `JWT_SECRET` | any long random string |
-| `ANTHROPIC_API_KEY` | *optional* — enables the real AI summary (console.anthropic.com; needs credit on the account) |
+```text
+http://localhost:5000
+```
 
-### 2. Frontend
+### 3. Set Up the Frontend
+
+Open another terminal:
 
 ```bash
 cd client
@@ -82,38 +208,60 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open the application:
 
-### 3. Demo accounts (password for all: `password123`)
+```text
+http://localhost:5173
+```
 
-| Role | Email |
-|------|-------|
-| Manager | manager@nexora.test |
-| Team Leader (leads the demo project) | leader2@nexora.test |
-| Team Leader (no project yet — sees an empty dashboard) | leader@nexora.test |
-| Team Member | member@nexora.test |
-| Team Member | member2@nexora.test |
+---
 
-## AI summary
+## Testing
 
-The summary is built from task data and the **written** daily reports. If `ANTHROPIC_API_KEY` is missing — or the call
-fails for any reason (no credit, no internet, rate limit) — a computed summary is shown instead, and the UI says which
-one you are looking at. The browser never sees the API key.
-
-## Deployment
-
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (MongoDB Atlas + Render + Vercel/Netlify, all free tiers).
-
-## Docs
-
-- `docs/API_LIST.md` — every endpoint with who can call it
-- `docs/ER_DIAGRAM.md` — database diagram
-- `docs/REVIEW_1_CHECKLIST.md`, `REVIEW_2_CHECKLIST.md`, `REVIEW_3_CHECKLIST.md` — scope of each review (Review 3 includes the demo script and known limitations)
-
-## Pushing updates to GitHub
+Run the backend automated tests:
 
 ```bash
-git add .
-git commit -m "Review 3: AI summary, reviews, notifications, analytics, proof links"
-git push
+cd server
+npm test
 ```
+
+The Phase 6 verification included:
+
+- 115 backend tests passed.
+- Frontend production build completed successfully.
+- Manager and Team Leader Analytics checked in the browser.
+- CSV export opened and verified in Excel.
+- PDF export generated and visually inspected.
+
+---
+
+## Role-Based Access
+
+NexOra enforces role-based access at both the frontend and backend levels.
+
+Team Leaders can access only the projects they lead, including their associated tasks, reports, reviews, files, and analytics.
+
+Managers have organization-wide management and monitoring access, while Team Members can access their assigned work.
+
+---
+
+## Future Improvements
+
+Potential future enhancements include:
+
+- Improved PDF chart rendering.
+- More detailed analytics and visual reports.
+- Additional dashboard customization.
+- Expanded reporting and performance insights.
+
+---
+
+## Repository
+
+**GitHub:** https://github.com/greesh1317/NexOra
+
+**Project:** NexOra — Stress-Free Team Management Platform
+
+**Development Stack:** MERN
+
+**Current Development Stage:** Phase 6 — Analytics and Reporting
