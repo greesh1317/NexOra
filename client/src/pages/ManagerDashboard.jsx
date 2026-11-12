@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar.jsx";
 import StatCard from "../components/StatCard.jsx";
 import SummaryBadge from "../components/SummaryBadge.jsx";
 import ProjectEditModal from "../components/ProjectEditModal.jsx";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
 import { formatDeadline } from "../utils/dates.js";
@@ -193,6 +194,10 @@ function ManagerDashboard() {
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Task analytics</h2>
             <p className="text-xs text-slate-400 mb-4">
               Across all projects — {analytics.overall.total} total tasks, {analytics.overall.completionRate}% complete
+              {analytics.overall.overdue > 0 && (
+                <span className="text-red-500 font-medium"> · {analytics.overall.overdue} overdue</span>
+              )}{" "}
+              · <Link to="/analytics" className="text-indigo-600 hover:underline">Open full analytics</Link>
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <StatCard label="Not started" value={analytics.overall.byStatus.not_started} accent="slate" />

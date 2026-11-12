@@ -179,6 +179,7 @@ function TeamLeaderDashboard() {
                     <div className="w-full bg-slate-100 rounded-full h-2">
                       <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${stats.completionRate}%` }} />
                     </div>
+                    {stats.overdue > 0 && <p className="text-[11px] text-red-500 mt-1">{stats.overdue} overdue</p>}
                   </div>
                 )}
 

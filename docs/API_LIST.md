@@ -28,8 +28,10 @@ All routes except `/api/auth/*` require `Authorization: Bearer <token>` (the JWT
 | Notifications    | GET    | `/api/notifications`               | Any logged-in user             | Only the caller's own, newest first |
 | Notifications    | PUT    | `/api/notifications/:id/read`      | Recipient only                 | |
 | Notifications    | PUT    | `/api/notifications/read-all`      | Any logged-in user             | |
-| Analytics        | GET    | `/api/analytics/overview`          | Manager only                   | Org-wide task counts, completion rate, per-person and per-project breakdown |
-| Analytics        | GET    | `/api/analytics/project/:projectId`| Manager / the project's leader | A leader gets `403` for projects they don't lead |
+| Analytics        | GET    | `/api/analytics/overview`          | Manager only                   | `{ overall, byProject[] }`. Each has `total`, `byStatus`, `completionRate`, `overdue`, `dueSoon`, `weeklyTrend[6]`, `byPerson[]` (`name, total, completed, open, overdue, blocked`); `overall` also has `overdueList[]` (up to 10, most overdue first). UI: **Analytics** page |
+| Analytics        | GET    | `/api/analytics/project/:projectId`| Manager / the project's leader | Same figures as above for one project (with `overdueList`). A leader gets `403` for projects they don't lead; a bad id gets `400` |
+| Reports          | GET    | `/api/analytics/report`            | Manager / Team Leader          | `?project=<id>&period=week\|month` → `{ meta, summary, workload[], tasks[], reports[] }`. A manager may omit `project` (all projects); a leader who omits it gets all projects they lead; a leader asking for someone else's project gets `403` |
+| Reports          | GET    | `/api/analytics/report.csv`        | Manager / Team Leader          | The same report as a downloadable CSV (UTF-8 with BOM, opens in Excel): summary, workload, every task, and the daily reports of the period. Text starting with `= + - @` is neutralised so it can't run as a spreadsheet formula. UI: **Download CSV** on the Analytics page |
 | AI Summary       | POST   | `/api/summary`                     | Manager / Team Leader          | Limited to 20 per hour per user.  `{ project?, scope: "today" \| "week" }` → `{ summary, source: "ai" \| "fallback", reason? }`. A leader **must** send a project they lead |
 | Attachments      | GET    | `/api/attachments`                 | Any logged-in user             | Metadata only (never file bytes), limited to files the caller may see. `?task=` / `?report=` |
 | Attachments      | POST   | `/api/attachments`                 | Assignee / Manager / project's leader (tasks); report owner (reports) | `multipart/form-data`: `file` + exactly one of `task` or `report`. Max 5 MB, 10 files per task/report |
@@ -78,3 +80,14 @@ A malformed id in a filter answers `400`, not a server error.
 **Health and outages.** `GET /health` answers `200 { status: "ok", database: "connected" }`, or `503 { status: "degraded", database: "disconnected" }` when MongoDB is unreachable. While the database is down every `/api/*` request answers `503` ("temporarily unavailable", `Retry-After: 5`) instead of hanging; the server keeps retrying the connection and recovers on its own.
 
 **Uploads.** Besides the extension allow-list, a file's first bytes must match its type (a renamed program is refused with `400`), empty files are refused, and the stored content type is decided by the server, not by the uploader's browser.
+
+## Analytics definitions
+
+| Figure | Meaning |
+|---|---|
+| **Overdue** | The task has a deadline, the deadline's day (UTC) is before today, and the task is not completed. A task due today is not overdue until tomorrow. |
+| **Due in 7 days** | Not completed, and due today or within the next 6 days. |
+| **Completion** | Completed tasks ÷ all tasks, rounded to a whole percent. |
+| **Weekly trend** | Tasks completed in each of the last 6 weeks (weeks start Monday). A task's finish date is `completedAt`, set when it is marked completed and cleared if it is reopened. Tasks completed before this feature existed use their last-edited date instead. |
+| **Open** (workload) | The person's tasks that are not completed. |
+| **Report period** | `week` = the last 7 days, `month` = the last 30 days. It applies to daily reports and to the "completed / created in this period" figures; the task list is always the current state. Each table is limited to 2000 rows. |

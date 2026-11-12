@@ -19,6 +19,8 @@ const taskSchema = new mongoose.Schema(
     // Proof-of-work link the assignee pastes in — e.g. a GitHub commit/PR URL,
     // a deployed preview, a doc. Optional; purely for a reviewer to click.
     submissionLink: { type: String },
+    // When the task was marked completed (set automatically; cleared if it is reopened). Feeds the weekly trend.
+    completedAt: { type: Date },
   },
   { timestamps: true }
 );

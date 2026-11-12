@@ -162,6 +162,13 @@ export const updateTask = async (req, res) => {
       if (req.body.submissionLink !== undefined) updates.submissionLink = req.body.submissionLink;
     }
 
+    // Remember when a task is finished (the weekly trend uses it), and forget it if the task is reopened
+    if (updates.status === "completed" && task.status !== "completed") {
+      updates.completedAt = new Date();
+    } else if (updates.status && updates.status !== "completed") {
+      updates.completedAt = null;
+    }
+
     const updated = await Task.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,

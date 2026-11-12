@@ -8,6 +8,7 @@ import CalendarPage from "./pages/CalendarPage.jsx";
 import TeamsPage from "./pages/TeamsPage.jsx";
 import PeoplePage from "./pages/PeoplePage.jsx";
 import OverviewPage from "./pages/OverviewPage.jsx";
+import AnalyticsPage from "./pages/AnalyticsPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
@@ -37,6 +38,14 @@ function App() {
         }
       />
 
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute roles={["manager", "team_leader"]}>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/people"
         element={

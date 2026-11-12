@@ -35,7 +35,7 @@ function Navbar() {
   const roleLabel = roleLabels[user?.role] || "";
 
   return (
-    <header className="flex items-center justify-between bg-white shadow px-6 py-3">
+    <header className="flex items-center justify-between bg-white shadow px-6 py-3 print:hidden">
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold text-slate-800">NexOra</h1>
         <nav className="flex items-center gap-1">
@@ -45,6 +45,11 @@ function Navbar() {
           <NavLink to="/teams" className={linkClass}>
             Teams
           </NavLink>
+          {(user?.role === "manager" || user?.role === "team_leader") && (
+            <NavLink to="/analytics" className={linkClass}>
+              Analytics
+            </NavLink>
+          )}
           {user?.role === "manager" && (
             <>
               <NavLink to="/overview" className={linkClass}>

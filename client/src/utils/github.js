@@ -9,18 +9,31 @@ function formatDate(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function buildCommitsLink({ repo, username, date = new Date() }) {
-  const cleanRepo = (repo || "").trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\/$/, "");
+
+export function buildCommitsLink({ repo, username, date = new Date(), branch = "master" }) {
+  const cleanRepo = (repo || "")
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, "")
+    .replace(/\/$/, "");
+
   const cleanUser = (username || "").trim();
-  if (!cleanRepo || !cleanUser) return "";
+  const cleanBranch = (branch || "master").trim();
+
+  if (!cleanRepo || !cleanUser || !cleanBranch) return "";
+
+  const parts = cleanRepo.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return "";
+
+  const [owner, repository] = parts;
 
   const since = formatDate(date);
   const next = new Date(date);
   next.setDate(next.getDate() + 1);
   const until = formatDate(next);
 
-  return `https://github.com/${cleanRepo}/commits?author=${encodeURIComponent(cleanUser)}&since=${since}&until=${until}`;
+  return `https://github.com/${owner}/${repository}/commits/${encodeURIComponent(cleanBranch)}?author=${encodeURIComponent(cleanUser)}&since=${since}&until=${until}`;
 }
+
 
 // Only allow http(s) links to be rendered as clickable anchors
 export function isSafeLink(url) {
